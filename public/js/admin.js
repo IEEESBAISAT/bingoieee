@@ -43,6 +43,26 @@ document.addEventListener('DOMContentLoaded', async () => {
   const inspectDetails = document.getElementById('inspect-details');
   const inspectGrid = document.getElementById('inspect-grid');
 
+  // Tutorial / Host Guide
+  const tutorialGuideBtn = document.getElementById('tutorial-guide-btn');
+  const quickTutorialTrigger = document.getElementById('quick-tutorial-trigger');
+  const tutorialModal = document.getElementById('tutorial-modal');
+  const tutorialModalClose = document.getElementById('tutorial-modal-close');
+  const tutorialGotItBtn = document.getElementById('tutorial-got-it-btn');
+
+  if (tutorialGuideBtn) {
+    tutorialGuideBtn.addEventListener('click', () => tutorialModal.classList.remove('hidden'));
+  }
+  if (quickTutorialTrigger) {
+    quickTutorialTrigger.addEventListener('click', () => tutorialModal.classList.remove('hidden'));
+  }
+  if (tutorialModalClose) {
+    tutorialModalClose.addEventListener('click', () => tutorialModal.classList.add('hidden'));
+  }
+  if (tutorialGotItBtn) {
+    tutorialGotItBtn.addEventListener('click', () => tutorialModal.classList.add('hidden'));
+  }
+
   const projectorModeBtn = document.getElementById('projector-mode-btn');
   const projectorModal = document.getElementById('projector-modal');
   const projectorModalClose = document.getElementById('projector-modal-close');

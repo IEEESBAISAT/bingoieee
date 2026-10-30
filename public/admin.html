@@ -64,10 +64,14 @@
 
       <div class="nav-actions">
         <!-- DB Mode Pill -->
-        <div class="db-status-badge" id="db-status-btn" title="Click to configure Supabase Database">
+        <div class="db-status-badge" id="db-status-btn" title="Supabase Database Status">
           <span class="status-dot"></span>
-          <span id="db-status-text">Database</span>
+          <span id="db-status-text">Supabase Connected ⚡</span>
         </div>
+
+        <button class="btn" id="tutorial-guide-btn" style="background: rgba(99, 102, 241, 0.12); color: #c7d2fe; border-color: rgba(99, 102, 241, 0.3);">
+          <span>📘 Host Guide</span>
+        </button>
 
         <button class="btn btn-primary" id="projector-mode-btn">
           <span>📺 Projector Mode & QR</span>
@@ -126,10 +130,14 @@
       </section>
 
       <!-- Rules Reminder Box -->
-      <div style="background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.2); padding: 12px 18px; border-radius: 10px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
-        <div style="font-size: 0.85rem; color: #bae6fd;">
-          🔒 <strong>Enforced Anti-Cheat Game Rules:</strong> A task is filled only when a participant enters a name. A name cannot appear more than <strong>2 times</strong> on an individual card, or more than <strong>8 times</strong> across all cards combined!
+      <div style="background: rgba(99, 102, 241, 0.08); border: 1px solid rgba(99, 102, 241, 0.2); padding: 12px 18px; border-radius: 12px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+        <div style="font-size: 0.85rem; color: #c7d2fe; display: flex; align-items: center; gap: 8px;">
+          <span>🔒</span>
+          <span><strong>Enforced Anti-Cheat Game Rules:</strong> Squares require a participant name. Max <strong>2 signatures per person</strong> on an individual card, and max <strong>8 signatures</strong> across the whole event!</span>
         </div>
+        <button class="btn" id="quick-tutorial-trigger" style="padding: 4px 10px; font-size: 0.78rem; background: rgba(255,255,255,0.08);">
+          View Host Tutorial &rarr;
+        </button>
       </div>
 
       <!-- Tab Navigation -->
@@ -235,6 +243,66 @@
     </main>
   </div>
 
+  <!-- MODAL: Host / Organizer Tutorial Screen -->
+  <div class="modal-overlay hidden" id="tutorial-modal">
+    <div class="modal-content" style="max-width: 620px;">
+      <button class="modal-close" id="tutorial-modal-close">&times;</button>
+      <div style="margin-bottom: 1.25rem;">
+        <span class="badge tech" style="margin-bottom: 6px; display: inline-block;">ORGANIZER CHEATSHEET</span>
+        <h2 style="font-size: 1.5rem; font-weight: 800; color: #fff;">How to Run the Bingo Icebreaker</h2>
+        <p style="font-size: 0.85rem; color: var(--text-muted);">Quick 4-step walkthrough for hosting a smooth, fun session.</p>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 1rem; margin-bottom: 1.5rem;">
+        
+        <div style="display: flex; gap: 14px; background: var(--bg-surface); padding: 14px 16px; border-radius: var(--radius-md); border: 1px solid var(--border);">
+          <div style="font-size: 1.75rem; flex-shrink: 0;">📺</div>
+          <div>
+            <h4 style="font-size: 0.95rem; font-weight: 700; color: #fff; margin-bottom: 3px;">1. Project the QR Code on Stage</h4>
+            <p style="font-size: 0.82rem; color: var(--text-muted); line-height: 1.4;">
+              Click <strong>"📺 Projector Mode & QR"</strong> in the top navigation. Project the screen on the auditorium projector. Students point their camera to open the game—no app downloads required.
+            </p>
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 14px; background: var(--bg-surface); padding: 14px 16px; border-radius: var(--radius-md); border: 1px solid var(--border);">
+          <div style="font-size: 1.75rem; flex-shrink: 0;">🎲</div>
+          <div>
+            <h4 style="font-size: 0.95rem; font-weight: 700; color: #fff; margin-bottom: 3px;">2. Zero-Friction Enrollment & Random Cards</h4>
+            <p style="font-size: 0.82rem; color: var(--text-muted); line-height: 1.4;">
+              Students only enter their name (no passwords). Each player receives a genuinely unique, randomized 5x5 card drawn from your active task pool with a central Free Space.
+            </p>
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 14px; background: var(--bg-surface); padding: 14px 16px; border-radius: var(--radius-md); border: 1px solid var(--border);">
+          <div style="font-size: 1.75rem; flex-shrink: 0;">✍️</div>
+          <div>
+            <h4 style="font-size: 0.95rem; font-weight: 700; color: #fff; margin-bottom: 3px;">3. Mingling & Signature Rules</h4>
+            <p style="font-size: 0.82rem; color: var(--text-muted); line-height: 1.4;">
+              To check a square, students must type the name of the person they met. <strong>Anti-Cheat:</strong> The same person can sign at most <strong>2 squares</strong> per card, and max <strong>8 times</strong> across the entire event.
+            </p>
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 14px; background: var(--bg-surface); padding: 14px 16px; border-radius: var(--radius-md); border: 1px solid var(--border);">
+          <div style="font-size: 1.75rem; flex-shrink: 0;">🏆</div>
+          <div>
+            <h4 style="font-size: 0.95rem; font-weight: 700; color: #fff; margin-bottom: 3px;">4. Live Inspection & Winner Verification</h4>
+            <p style="font-size: 0.82rem; color: var(--text-muted); line-height: 1.4;">
+              When a student achieves BINGO (5 lines), a golden <strong>🏆 BINGO</strong> badge appears next to their name in your table. Click <strong>"🔍 Inspect"</strong> to view their exact board and verify who signed their squares before awarding prizes!
+            </p>
+          </div>
+        </div>
+
+      </div>
+
+      <button class="btn-primary" id="tutorial-got-it-btn" style="width: 100%;">
+        Got It, Let's Host! 🚀
+      </button>
+    </div>
+  </div>
+
   <!-- MODAL: Inspect Participant Board -->
   <div class="modal-overlay hidden" id="inspect-modal">
     <div class="modal-content" style="max-width: 650px;">
@@ -260,42 +328,12 @@
         
         <div id="qrcode-container"></div>
         
-        <div style="margin-top: 1rem; font-size: 1.1rem; font-weight: 700; color: var(--accent-cyan);" id="projector-url-text">
+        <div style="margin-top: 1rem; font-size: 1.1rem; font-weight: 700; color: var(--brand-cyan);" id="projector-url-text">
           http://localhost:3000
         </div>
         <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 6px;">
           No app download required. Just enter your name to play!
         </p>
-      </div>
-    </div>
-  </div>
-
-  <!-- MODAL: Supabase Database Configuration -->
-  <div class="modal-overlay hidden" id="supabase-modal">
-    <div class="modal-content" style="max-width: 500px;">
-      <button class="modal-close" id="supabase-modal-close">&times;</button>
-      <h3 style="margin-bottom: 0.5rem;">Supabase Connection Setup</h3>
-      <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1.25rem;">
-        Connect your Supabase project for real-time Postgres synchronization between organizer and players.
-      </p>
-
-      <div class="form-group">
-        <label for="sb-url-input">Project URL</label>
-        <input type="text" id="sb-url-input" class="input-field" placeholder="https://xyzcompany.supabase.co">
-      </div>
-
-      <div class="form-group">
-        <label for="sb-key-input">Anon / Public API Key</label>
-        <input type="password" id="sb-key-input" class="input-field" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...">
-      </div>
-
-      <div style="background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.2); padding: 10px; border-radius: 8px; margin-bottom: 1.25rem; font-size: 0.8rem; color: #bae6fd;">
-        💡 <strong>Tip:</strong> You can run the prepared <code>supabase_schema.sql</code> file in your Supabase SQL editor to auto-create the tables and seed tasks in seconds.
-      </div>
-
-      <div style="display: flex; gap: 8px;">
-        <button class="btn btn-primary" id="save-supabase-btn" style="flex: 2;">Save & Connect</button>
-        <button class="btn" id="disconnect-supabase-btn" style="flex: 1;">Use Local API</button>
       </div>
     </div>
   </div>

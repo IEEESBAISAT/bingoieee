@@ -18,6 +18,26 @@ document.addEventListener('DOMContentLoaded', async () => {
   const soundToggleBtn = document.getElementById('sound-toggle-btn');
   const changeNameBtn = document.getElementById('change-name-btn');
 
+  // Player Tutorial Modal Elements
+  const playerTutorialBtn = document.getElementById('player-tutorial-btn');
+  const inlineTutorialLink = document.getElementById('inline-tutorial-link');
+  const playerTutorialModal = document.getElementById('player-tutorial-modal');
+  const playerTutorialClose = document.getElementById('player-tutorial-close');
+  const playerTutorialOkBtn = document.getElementById('player-tutorial-ok-btn');
+
+  function openPlayerTutorial() {
+    if (playerTutorialModal) playerTutorialModal.classList.remove('hidden');
+  }
+
+  function closePlayerTutorial() {
+    if (playerTutorialModal) playerTutorialModal.classList.add('hidden');
+  }
+
+  if (playerTutorialBtn) playerTutorialBtn.addEventListener('click', openPlayerTutorial);
+  if (inlineTutorialLink) inlineTutorialLink.addEventListener('click', openPlayerTutorial);
+  if (playerTutorialClose) playerTutorialClose.addEventListener('click', closePlayerTutorial);
+  if (playerTutorialOkBtn) playerTutorialOkBtn.addEventListener('click', closePlayerTutorial);
+
   // Sign / Verification Modal
   const signModal = document.getElementById('sign-task-modal');
   const modalTaskCategory = document.getElementById('modal-task-category');

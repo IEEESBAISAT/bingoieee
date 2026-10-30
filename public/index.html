@@ -32,10 +32,11 @@
             <span id="player-display-name">Guest</span>
             <span class="player-tag" id="player-display-branch"></span>
           </div>
-          <div style="font-size: 0.72rem; color: var(--text-muted);" id="sync-status">🟢 Live synced</div>
+          <div style="font-size: 0.72rem; color: #34d399;" id="sync-status">🟢 Live synced</div>
         </div>
       </div>
       <div class="player-controls">
+        <button class="icon-btn" id="player-tutorial-btn" title="How to play">❓ Guide</button>
         <button class="icon-btn" id="sound-toggle-btn" title="Toggle Sound">🔊 Sound</button>
         <button class="icon-btn" id="change-name-btn" title="Change Profile">👤 Profile</button>
       </div>
@@ -55,9 +56,12 @@
       <!-- Generated dynamically by app.js -->
     </main>
 
-    <!-- Rules Banner -->
-    <div style="font-size: 0.75rem; color: var(--text-muted); text-align: center; background: rgba(255,255,255,0.03); border: 1px dashed var(--border-color); border-radius: var(--radius-sm); padding: 8px 12px;">
-      ℹ️ <strong>Rules:</strong> Each person can sign at most <strong>2 tasks</strong> on your card, and max <strong>8 times</strong> across the entire event!
+    <!-- Rules Banner with Tutorial Link -->
+    <div style="font-size: 0.75rem; color: var(--text-secondary); text-align: center; background: rgba(255,255,255,0.03); border: 1px dashed var(--border-card); border-radius: var(--radius-sm); padding: 8px 12px; display: flex; justify-content: space-between; align-items: center;">
+      <span>ℹ️ <strong>Rules:</strong> Max 2 signatures per person on your board, max 8 event-wide!</span>
+      <button id="inline-tutorial-link" style="background: none; border: none; color: var(--brand-cyan); font-weight: 700; cursor: pointer; text-decoration: underline; font-size: 0.75rem; padding: 0 4px;">
+        How to play?
+      </button>
     </div>
 
     <!-- Stats & Progress Footer -->
@@ -71,7 +75,7 @@
         <span class="stat-val" id="tasks-checked-count">1 / 25</span>
       </div>
       <div class="stat-pill">
-        <span id="bingo-status-pill" style="color: var(--accent-gold); font-weight: 700;">Aim for 5 Lines!</span>
+        <span id="bingo-status-pill" style="color: var(--brand-amber); font-weight: 700;">Aim for 5 Lines!</span>
       </div>
     </footer>
   </div>
@@ -79,7 +83,7 @@
   <!-- Onboarding Modal: Just enter your name (Zero Friction Login) -->
   <div class="modal-overlay" id="join-modal">
     <div class="modal-card">
-      <div style="font-size: 2.2rem; margin-bottom: 0.5rem;">🎉</div>
+      <div style="font-size: 2.5rem; margin-bottom: 0.4rem;">🎉</div>
       <h2>Join the Icebreaker!</h2>
       <p>Enter your name to generate your unique, randomized 5x5 Bingo card.</p>
       
@@ -99,12 +103,60 @@
     </div>
   </div>
 
+  <!-- TUTORIAL MODAL: How to Play -->
+  <div class="modal-overlay hidden" id="player-tutorial-modal">
+    <div class="modal-card" style="max-width: 480px; text-align: left;">
+      <button class="modal-close" id="player-tutorial-close" style="top: 1rem; right: 1rem;">&times;</button>
+      <div style="text-align: center; margin-bottom: 1.25rem;">
+        <span class="brand-badge" style="margin-bottom: 6px;">GAME TUTORIAL</span>
+        <h2 style="font-size: 1.5rem; font-weight: 800; color: #fff;">How to Play Human Bingo</h2>
+        <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0;">Break the ice, find classmates & achieve 5 lines!</p>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 0.85rem; margin-bottom: 1.5rem;">
+        <div style="display: flex; gap: 12px; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border-card); padding: 12px 14px; border-radius: var(--radius-md);">
+          <div style="font-size: 1.5rem; flex-shrink: 0;">🤝</div>
+          <div>
+            <div style="font-weight: 700; color: #fff; font-size: 0.9rem; margin-bottom: 2px;">1. Mingle & Search</div>
+            <div style="font-size: 0.8rem; color: var(--text-secondary); line-height: 1.35;">
+              Walk around and strike up conversations to find students matching your card's prompts (e.g. <em>"Uses Linux"</em> or <em>"From a different branch"</em>).
+            </div>
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 12px; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border-card); padding: 12px 14px; border-radius: var(--radius-md);">
+          <div style="font-size: 1.5rem; flex-shrink: 0;">✍️</div>
+          <div>
+            <div style="font-weight: 700; color: #fff; font-size: 0.9rem; margin-bottom: 2px;">2. Get Their Name</div>
+            <div style="font-size: 0.8rem; color: var(--text-secondary); line-height: 1.35;">
+              Tap the matching square, type their name, and confirm. <strong>Rule:</strong> Each person can sign at most <strong>2 squares</strong> on your card!
+            </div>
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 12px; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border-card); padding: 12px 14px; border-radius: var(--radius-md);">
+          <div style="font-size: 1.5rem; flex-shrink: 0;">🏆</div>
+          <div>
+            <div style="font-weight: 700; color: #fff; font-size: 0.9rem; margin-bottom: 2px;">3. Complete 5 Lines & Yell BINGO!</div>
+            <div style="font-size: 0.8rem; color: var(--text-secondary); line-height: 1.35;">
+              Each horizontal, vertical, or diagonal line lights up a letter in <strong>B-I-N-G-O</strong>. Complete 5 lines to claim your prize from the organizers!
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <button class="btn-primary" id="player-tutorial-ok-btn" style="width: 100%;">
+        Got it! Let's Mingle 🎉
+      </button>
+    </div>
+  </div>
+
   <!-- Verification Modal: Who did you meet? (Required to mark task) -->
   <div class="modal-overlay hidden" id="sign-task-modal">
     <div class="modal-card">
       <span class="badge" id="modal-task-category" style="margin-bottom: 8px; display: inline-block;">TASK</span>
       <h3 id="modal-task-text" style="font-size: 1.15rem; margin-bottom: 0.5rem; line-height: 1.35;">Task Description</h3>
-      <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 1rem;">
+      <p style="font-size: 0.82rem; color: var(--text-secondary); margin-bottom: 1rem;">
         Find someone who fits this task and enter their name to sign your square:
       </p>
       
@@ -116,7 +168,7 @@
         <div class="form-group">
           <label for="person-name-input">Person's Full Name *</label>
           <input type="text" id="person-name-input" class="input-field" placeholder="e.g. Rahul Sharma" required autocomplete="off">
-          <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 4px;">
+          <div style="font-size: 0.72rem; color: var(--text-secondary); margin-top: 4px;">
             ⚠️ Max 2 squares per person on your board.
           </div>
         </div>
@@ -140,11 +192,11 @@
   <div class="modal-overlay hidden" id="victory-modal">
     <div class="modal-card victory-card">
       <div class="victory-icon">🏆</div>
-      <h2 style="color: var(--accent-gold); font-size: 2rem;">BINGO!</h2>
+      <h2 style="color: var(--brand-gold); font-size: 2rem;">BINGO!</h2>
       <p style="color: #e2e8f0; font-size: 1rem; margin-bottom: 1.5rem;">
         Incredible job! You've completed 5 full lines! Show your card to an IEEE organizer to claim your reward!
       </p>
-      <button class="btn-primary" id="continue-playing-btn" style="background: var(--accent-gold); color: #000; font-weight: 800;">
+      <button class="btn-primary" id="continue-playing-btn" style="background: var(--brand-gold); color: #000; font-weight: 800;">
         Keep Mingling & Playing 🎊
       </button>
     </div>
