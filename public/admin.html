@@ -16,7 +16,42 @@
 </head>
 <body>
 
-  <div class="admin-layout">
+  <!-- ADMIN AUTHENTICATION GATE (Only Admins Login) -->
+  <div class="modal-overlay" id="admin-login-overlay" style="z-index: 9999;">
+    <div class="modal-card" style="max-width: 420px; text-align: center;">
+      <div style="font-size: 2.8rem; margin-bottom: 0.5rem;">🔒</div>
+      <h2 style="font-size: 1.5rem; margin-bottom: 0.25rem;">Organizer Access Only</h2>
+      <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 1.25rem;">
+        This console is restricted to IEEE event coordinators. Students must use the main game page.
+      </p>
+
+      <div id="login-error-box" style="display: none; background: rgba(244, 63, 94, 0.15); border: 1px solid rgba(244, 63, 94, 0.4); color: #fecdd3; padding: 10px; border-radius: 8px; font-size: 0.82rem; margin-bottom: 1rem; text-align: left;">
+      </div>
+
+      <form id="admin-login-form">
+        <div class="form-group">
+          <label for="admin-user-input">Admin Username</label>
+          <input type="text" id="admin-user-input" class="input-field" placeholder="Username (default: admin)" required autofocus>
+        </div>
+
+        <div class="form-group">
+          <label for="admin-pass-input">Password / Passcode</label>
+          <input type="password" id="admin-pass-input" class="input-field" placeholder="Password (default: ieee@2026)" required>
+        </div>
+
+        <button type="submit" class="btn-primary" id="admin-login-submit-btn" style="margin-top: 0.5rem;">
+          Unlock Organizer Console 🔑
+        </button>
+      </form>
+
+      <div style="margin-top: 1.25rem; font-size: 0.75rem; color: var(--text-muted);">
+        Are you a participant? <a href="/" style="color: var(--accent-cyan); text-decoration: none; font-weight: 600;">Go to Bingo Card &rarr;</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- ADMIN CONSOLE LAYOUT (Hidden until authenticated) -->
+  <div class="admin-layout" id="admin-main-layout" style="display: none;">
     <!-- Navbar -->
     <header class="admin-navbar">
       <div class="brand">
@@ -31,7 +66,7 @@
         <!-- DB Mode Pill -->
         <div class="db-status-badge" id="db-status-btn" title="Click to configure Supabase Database">
           <span class="status-dot"></span>
-          <span id="db-status-text">Checking Database...</span>
+          <span id="db-status-text">Database</span>
         </div>
 
         <button class="btn btn-primary" id="projector-mode-btn">
@@ -39,11 +74,15 @@
         </button>
 
         <a href="/" target="_blank" class="btn" title="Open player card in new tab">
-          <span>🎮 Open Player View</span>
+          <span>🎮 Player View</span>
         </a>
 
         <button class="btn btn-danger" id="reset-round-btn" title="Wipe participants for a fresh round">
           <span>🔄 Reset Round</span>
+        </button>
+
+        <button class="btn" id="admin-logout-btn" title="Sign out" style="background: rgba(255,255,255,0.06);">
+          <span>🚪 Logout</span>
         </button>
       </div>
     </header>
@@ -86,6 +125,13 @@
         </div>
       </section>
 
+      <!-- Rules Reminder Box -->
+      <div style="background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.2); padding: 12px 18px; border-radius: 10px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+        <div style="font-size: 0.85rem; color: #bae6fd;">
+          🔒 <strong>Enforced Anti-Cheat Game Rules:</strong> A task is filled only when a participant enters a name. A name cannot appear more than <strong>2 times</strong> on an individual card, or more than <strong>8 times</strong> across all cards combined!
+        </div>
+      </div>
+
       <!-- Tab Navigation -->
       <nav class="tab-bar">
         <button class="tab-btn active" data-tab="participants-tab">👥 Live Participants (<span id="tab-participants-count">0</span>)</button>
@@ -99,7 +145,7 @@
           <div class="section-header">
             <div>
               <h2 class="section-title">Active Event Participants</h2>
-              <p style="font-size: 0.85rem; color: var(--text-muted);">Real-time monitoring of participants and their completed lines.</p>
+              <p style="font-size: 0.85rem; color: var(--text-muted);">Real-time monitoring of participants, checked tasks, and completed lines.</p>
             </div>
             <div style="display: flex; gap: 10px;">
               <input type="text" id="participant-search" placeholder="Search by name or branch..." style="padding: 8px 12px; background: var(--bg-surface); border: 1px solid var(--border); border-radius: 8px; color: #fff; font-size: 0.85rem; width: 220px;">
@@ -113,7 +159,7 @@
                 <tr>
                   <th>Participant</th>
                   <th>Branch / Major</th>
-                  <th>Tasks Checked</th>
+                  <th>Tasks Signed</th>
                   <th>Lines Done</th>
                   <th>Bingo Status</th>
                   <th>Last Active</th>

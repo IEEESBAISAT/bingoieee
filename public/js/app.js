@@ -17,18 +17,24 @@ document.addEventListener('DOMContentLoaded', async () => {
   const bingoStatusPill = document.getElementById('bingo-status-pill');
   const soundToggleBtn = document.getElementById('sound-toggle-btn');
   const changeNameBtn = document.getElementById('change-name-btn');
-  const noteModal = document.getElementById('note-modal');
-  const noteInput = document.getElementById('note-input');
-  const noteTaskTitle = document.getElementById('note-task-title');
-  const saveNoteBtn = document.getElementById('save-note-btn');
-  const closeNoteBtn = document.getElementById('close-note-btn');
+
+  // Sign / Verification Modal
+  const signModal = document.getElementById('sign-task-modal');
+  const modalTaskCategory = document.getElementById('modal-task-category');
+  const modalTaskText = document.getElementById('modal-task-text');
+  const modalErrorBox = document.getElementById('modal-error-box');
+  const signTaskForm = document.getElementById('sign-task-form');
+  const personNameInput = document.getElementById('person-name-input');
+  const confirmSignBtn = document.getElementById('confirm-sign-btn');
+  const clearTaskBtn = document.getElementById('clear-task-btn');
+  const cancelSignBtn = document.getElementById('cancel-sign-btn');
+
   const victoryModal = document.getElementById('victory-modal');
   const continuePlayingBtn = document.getElementById('continue-playing-btn');
 
-  // App State
+  // State
   let currentParticipant = null;
-  let activeEditingCell = null;
-  let previousLines = 0;
+  let activeCellIndex = null;
 
   // Sound settings
   let soundEnabled = localStorage.getItem('sound_enabled') !== 'false';
@@ -46,7 +52,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     soundToggleBtn.innerHTML = soundEnabled ? '🔊 Sound' : '🔇 Muted';
   }
 
-  // Check existing session
+  // Restore Session
   const savedId = localStorage.getItem(LOCAL_STORAGE_KEY);
   if (savedId) {
     try {
@@ -60,8 +66,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       } else {
         joinModal.classList.remove('hidden');
       }
-    } catch (err) {
-      console.warn('Could not restore session, starting fresh:', err);
+    } catch {
       joinModal.classList.remove('hidden');
     }
   } else {
@@ -85,12 +90,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       updateProgress();
       window.sfx.playPop();
     } catch (err) {
-      alert('Error joining icebreaker session. Please verify your connection.');
+      alert('Error joining icebreaker session. Please try again.');
       console.error(err);
     }
   });
 
-  // Change Name / Edit Profile
   changeNameBtn.addEventListener('click', () => {
     if (currentParticipant) {
       nameInput.value = currentParticipant.name || '';
@@ -99,7 +103,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     joinModal.classList.remove('hidden');
   });
 
-  // Render Player Bar
   function renderPlayerBar() {
     if (!currentParticipant) return;
     playerBar.style.display = 'flex';
@@ -131,12 +134,18 @@ document.addEventListener('DOMContentLoaded', async () => {
       textEl.className = 'cell-text';
       textEl.textContent = cell.text;
 
-      // Note tag if present
+      // Note / Signer tag
       const noteEl = document.createElement('div');
       noteEl.className = 'cell-note';
-      noteEl.textContent = cell.notes ? `✍️ ${cell.notes}` : '';
+      if (idx === 12) {
+        noteEl.textContent = '🌟 Freebie';
+      } else if (cell.notes) {
+        noteEl.textContent = `✍️ ${cell.notes}`;
+      } else {
+        noteEl.textContent = '';
+      }
 
-      // Check indicator checkmark
+      // Checkmark indicator
       const checkIndicator = document.createElement('div');
       checkIndicator.className = 'check-indicator';
       checkIndicator.innerHTML = '✓';
@@ -146,133 +155,128 @@ document.addEventListener('DOMContentLoaded', async () => {
       cellEl.appendChild(noteEl);
       cellEl.appendChild(checkIndicator);
 
-      // Handle Cell Click (Toggle task check)
-      cellEl.addEventListener('click', () => handleCellClick(idx));
-
-      // Handle Double Click or Long Press (Add note of who was met)
-      cellEl.addEventListener('contextmenu', (e) => {
-        e.preventDefault();
-        openNoteModal(idx);
-      });
+      // Handle Cell Click -> Open Verification Modal
+      cellEl.addEventListener('click', () => openSignModal(idx));
 
       bingoGrid.appendChild(cellEl);
     });
   }
 
-  // Cell Click Handler
-  async function handleCellClick(index) {
-    if (!currentParticipant) return;
-    if (index === 12) return; // Free space cannot be untoggled
-
+  // Open Name Verification Modal (Enforces name requirement)
+  function openSignModal(index) {
+    if (index === 12) return; // Free space cannot be modified
+    activeCellIndex = index;
     const cell = currentParticipant.board[index];
-    const newChecked = !cell.checked;
-    cell.checked = newChecked;
 
-    // Visual sound effect
-    if (newChecked) {
+    modalTaskCategory.textContent = (cell.category || 'General').toUpperCase();
+    modalTaskText.textContent = cell.text;
+    personNameInput.value = cell.notes || '';
+    modalErrorBox.style.display = 'none';
+    modalErrorBox.textContent = '';
+
+    if (cell.checked) {
+      confirmSignBtn.textContent = 'Update Name';
+      clearTaskBtn.style.display = 'block';
+    } else {
+      confirmSignBtn.textContent = 'Sign & Check Square ✓';
+      clearTaskBtn.style.display = 'none';
+    }
+
+    signModal.classList.remove('hidden');
+    setTimeout(() => personNameInput.focus(), 150);
+  }
+
+  // Handle Sign Form Submit
+  signTaskForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (activeCellIndex === null || !currentParticipant) return;
+
+    const personName = personNameInput.value.trim();
+    if (!personName) {
+      showModalError('Please enter the name of the person who completed this challenge with you!');
+      return;
+    }
+
+    confirmSignBtn.disabled = true;
+    confirmSignBtn.textContent = 'Verifying...';
+
+    try {
+      const prevLines = currentParticipant.completedLines || 0;
+      const updated = await window.appDb.verifyAndFillTask(
+        currentParticipant.id,
+        activeCellIndex,
+        personName,
+        'fill'
+      );
+
+      currentParticipant.board = updated.board;
+      currentParticipant.completedLines = updated.completedLines;
+      currentParticipant.completedCount = updated.completedCount;
+      currentParticipant.hasBingo = updated.hasBingo;
+
       window.sfx.playPop();
-    }
+      signModal.classList.add('hidden');
+      renderBoard();
+      updateProgress();
 
-    // Immediately update local DOM for instant snappy feel
-    const cellEl = bingoGrid.children[index];
-    if (cellEl) {
-      cellEl.classList.toggle('checked', newChecked);
-    }
+      if (updated.completedLines > prevLines) {
+        window.sfx.playLineChime();
+      }
 
-    // Recalculate progress
-    const prevLines = currentParticipant.completedLines || 0;
-    const { completedLines, hasBingo } = window.appDb.calculateLines(currentParticipant.board);
-    currentParticipant.completedLines = completedLines;
-    currentParticipant.hasBingo = hasBingo;
-    currentParticipant.completedCount = currentParticipant.board.filter(c => c.checked).length;
-
-    updateProgress();
-
-    // Check if new line was formed
-    if (completedLines > prevLines) {
-      window.sfx.playLineChime();
-    }
-
-    // Check for full Bingo!
-    if (hasBingo && !currentParticipant._celebrated) {
-      currentParticipant._celebrated = true;
-      triggerBingoCelebration();
-    }
-
-    // Persist to Database / Supabase
-    try {
-      await window.appDb.updateCardState(
-        currentParticipant.id,
-        index,
-        newChecked,
-        cell.notes || '',
-        currentParticipant.board
-      );
+      if (updated.hasBingo && !currentParticipant._celebrated) {
+        currentParticipant._celebrated = true;
+        triggerBingoCelebration();
+      }
     } catch (err) {
-      console.error('Failed to sync card state:', err);
+      showModalError(err.message || 'Validation failed.');
+    } finally {
+      confirmSignBtn.disabled = false;
+      confirmSignBtn.textContent = 'Sign & Check Square ✓';
     }
+  });
 
-    // If checked for first time and no note, gently prompt note
-    if (newChecked && !cell.notes) {
-      setTimeout(() => {
-        openNoteModal(index);
-      }, 400);
-    }
-  }
-
-  // Open note modal to record who they met
-  function openNoteModal(index) {
-    if (index === 12) return;
-    activeEditingCell = index;
-    const cell = currentParticipant.board[index];
-    noteTaskTitle.textContent = cell.text;
-    noteInput.value = cell.notes || '';
-    noteModal.classList.remove('hidden');
-    setTimeout(() => noteInput.focus(), 100);
-  }
-
-  saveNoteBtn.addEventListener('click', async () => {
-    if (activeEditingCell === null || !currentParticipant) return;
-    const note = noteInput.value.trim();
-    currentParticipant.board[activeEditingCell].notes = note;
-
-    const cellEl = bingoGrid.children[activeEditingCell];
-    if (cellEl) {
-      const noteEl = cellEl.querySelector('.cell-note');
-      if (noteEl) noteEl.textContent = note ? `✍️ ${note}` : '';
-    }
-
-    noteModal.classList.add('hidden');
-
+  // Handle Clear / Unmark
+  clearTaskBtn.addEventListener('click', async () => {
+    if (activeCellIndex === null || !currentParticipant) return;
     try {
-      await window.appDb.updateCardState(
+      const updated = await window.appDb.verifyAndFillTask(
         currentParticipant.id,
-        activeEditingCell,
-        currentParticipant.board[activeEditingCell].checked,
-        note,
-        currentParticipant.board
+        activeCellIndex,
+        '',
+        'clear'
       );
-    } catch (e) {
-      console.error(e);
+      currentParticipant.board = updated.board;
+      currentParticipant.completedLines = updated.completedLines;
+      currentParticipant.completedCount = updated.completedCount;
+      currentParticipant.hasBingo = updated.hasBingo;
+
+      signModal.classList.add('hidden');
+      renderBoard();
+      updateProgress();
+    } catch (err) {
+      showModalError(err.message);
     }
-    activeEditingCell = null;
   });
 
-  closeNoteBtn.addEventListener('click', () => {
-    noteModal.classList.add('hidden');
-    activeEditingCell = null;
+  cancelSignBtn.addEventListener('click', () => {
+    signModal.classList.add('hidden');
+    activeCellIndex = null;
   });
 
-  // Update B-I-N-G-O letters & statistics
+  function showModalError(msg) {
+    modalErrorBox.textContent = msg;
+    modalErrorBox.style.display = 'block';
+  }
+
+  // Update Progress & Lit Letters
   function updateProgress() {
     if (!currentParticipant) return;
     const lines = currentParticipant.completedLines || 0;
-    const checkedCount = currentParticipant.board.filter(c => c.checked).length;
+    const checkedCount = currentParticipant.board ? currentParticipant.board.filter(c => c.checked).length : 1;
 
     linesCountEl.textContent = `${lines} / 5`;
     tasksCheckedCountEl.textContent = `${checkedCount} / 25`;
 
-    // Light up B-I-N-G-O letters (1 line = B, 2 = I, 3 = N, 4 = G, 5 = O)
     for (let i = 0; i < 5; i++) {
       const letterEl = document.getElementById(`letter-${i}`);
       if (letterEl) {
@@ -293,22 +297,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
-  // Bingo Celebration Explosion
   function triggerBingoCelebration() {
     window.sfx.playBingoFanfare();
     victoryModal.classList.remove('hidden');
 
-    // Confetti cannon blast
     if (window.confetti) {
       const count = 200;
       const defaults = { origin: { y: 0.7 } };
-
       function fire(particleRatio, opts) {
         window.confetti(Object.assign({}, defaults, opts, {
           particleCount: Math.floor(count * particleRatio)
         }));
       }
-
       fire(0.25, { spread: 26, startVelocity: 55 });
       fire(0.2, { spread: 60 });
       fire(0.35, { spread: 100, decay: 0.91, scalar: 0.8 });
@@ -321,12 +321,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     victoryModal.classList.add('hidden');
   });
 
-  // Listen to remote reset event
   window.appDb.subscribe(
     (payload) => {
       if (payload && payload.eventType === 'RESET') {
         localStorage.removeItem(LOCAL_STORAGE_KEY);
-        alert('A new round has started! Please enter your name to get a new card.');
+        alert('A new round has been started by the organizers! Get ready for a fresh card.');
         location.reload();
       }
     },

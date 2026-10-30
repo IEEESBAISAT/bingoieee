@@ -1,6 +1,15 @@
-// Admin Dashboard Controller
+// Admin Dashboard Controller with Authentication Gate
 document.addEventListener('DOMContentLoaded', async () => {
-  // Elements
+  // Elements - Auth
+  const loginOverlay = document.getElementById('admin-login-overlay');
+  const adminMainLayout = document.getElementById('admin-main-layout');
+  const adminLoginForm = document.getElementById('admin-login-form');
+  const adminUserInput = document.getElementById('admin-user-input');
+  const adminPassInput = document.getElementById('admin-pass-input');
+  const loginErrorBox = document.getElementById('login-error-box');
+  const adminLogoutBtn = document.getElementById('admin-logout-btn');
+
+  // Elements - Dashboard
   const dbStatusBtn = document.getElementById('db-status-btn');
   const dbStatusText = document.getElementById('db-status-text');
   const supabaseModal = document.getElementById('supabase-modal');
@@ -45,7 +54,48 @@ document.addEventListener('DOMContentLoaded', async () => {
   let allTasks = [];
   let allParticipants = [];
   let activeCategoryFilter = 'ALL';
-  let qrCodeInstance = null;
+
+  // --- Check Authentication Gate ---
+  const isAuthenticated = await window.appDb.verifyAdminSession();
+  if (isAuthenticated) {
+    showDashboard();
+  } else {
+    showLogin();
+  }
+
+  function showLogin() {
+    loginOverlay.style.display = 'flex';
+    adminMainLayout.style.display = 'none';
+  }
+
+  function showDashboard() {
+    loginOverlay.style.display = 'none';
+    adminMainLayout.style.display = 'flex';
+    updateDbStatus();
+    loadAllData();
+  }
+
+  // Admin Login Submit
+  adminLoginForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const user = adminUserInput.value.trim();
+    const pass = adminPassInput.value;
+    loginErrorBox.style.display = 'none';
+
+    try {
+      await window.appDb.loginAdmin(user, pass);
+      showDashboard();
+    } catch (err) {
+      loginErrorBox.textContent = err.message || 'Invalid username or password.';
+      loginErrorBox.style.display = 'block';
+    }
+  });
+
+  // Admin Logout
+  adminLogoutBtn.addEventListener('click', () => {
+    window.appDb.logoutAdmin();
+    showLogin();
+  });
 
   // Update DB Status Pill
   function updateDbStatus() {
@@ -57,7 +107,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       dbStatusBtn.style.color = '#38bdf8';
     }
   }
-  updateDbStatus();
 
   // Supabase Settings Modal
   dbStatusBtn.addEventListener('click', () => {
@@ -134,7 +183,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     filtered.forEach(task => {
       const card = document.createElement('div');
       card.className = `task-card ${task.active === false ? 'inactive' : ''}`;
-
       const catLower = (task.category || 'general').toLowerCase();
 
       card.innerHTML = `
@@ -155,7 +203,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         </div>
       `;
 
-      // Toggle active
       card.querySelector(`[data-toggle-id="${task.id}"]`).addEventListener('click', async () => {
         const newActive = task.active === false;
         await window.appDb.updateTask(task.id, { active: newActive });
@@ -164,7 +211,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         kpiTasks.textContent = allTasks.filter(t => t.active !== false).length;
       });
 
-      // Delete task
       card.querySelector(`[data-delete-id="${task.id}"]`).addEventListener('click', async () => {
         if (confirm(`Delete task: "${task.text}"?`)) {
           await window.appDb.deleteTask(task.id);
@@ -179,7 +225,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-  // Add Task
   addTaskForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     const text = newTaskText.value.trim();
@@ -198,7 +243,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
-  // Task Category Filters
   document.querySelectorAll('.task-filter-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       document.querySelectorAll('.task-filter-btn').forEach(b => b.classList.remove('active'));
@@ -208,7 +252,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   });
 
-  // Seed default presets
   seedDefaultTasksBtn.addEventListener('click', async () => {
     if (confirm('Add IEEE curated icebreaker presets to the task pool?')) {
       const presets = [
@@ -300,10 +343,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         </td>
       `;
 
-      // Inspect participant card
       tr.querySelector(`[data-inspect-id="${p.id}"]`).addEventListener('click', () => openInspectModal(p));
-
-      // Remove participant
       tr.querySelector(`[data-remove-id="${p.id}"]`).addEventListener('click', async () => {
         if (confirm(`Remove participant "${p.name}"?`)) {
           await window.appDb.deleteParticipant(p.id);
@@ -320,10 +360,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   participantSearch.addEventListener('input', renderParticipantsTable);
   refreshParticipantsBtn.addEventListener('click', loadParticipants);
 
-  // --- Inspect Participant Modal ---
+  // Inspect Participant Board Modal
   function openInspectModal(p) {
     inspectName.textContent = `${p.name}’s 5x5 Bingo Card`;
-    inspectDetails.textContent = `Branch: ${p.collegeBranch || 'None'} • Lines: ${p.completedLines || 0}/5 • Checked: ${p.completedCount || 0}/25`;
+    inspectDetails.textContent = `Branch: ${p.collegeBranch || 'None'} • Lines: ${p.completedLines || 0}/5 • Signed: ${p.completedCount || 0}/25`;
     inspectGrid.innerHTML = '';
 
     if (p.board && Array.isArray(p.board)) {
@@ -336,7 +376,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         cellEl.innerHTML = `
           <span class="cell-category">${idx === 12 ? 'FREE' : (cell.category || '')}</span>
           <div class="cell-text" style="font-size: 0.65rem;">${escapeHtml(cell.text)}</div>
-          ${cell.notes ? `<div class="cell-note" style="font-size: 0.6rem;">✍️ ${escapeHtml(cell.notes)}</div>` : ''}
+          ${cell.notes ? `<div class="cell-note" style="font-size: 0.6rem; color: #38bdf8; font-weight: 600;">✍️ Signed by: ${escapeHtml(cell.notes)}</div>` : ''}
           <div class="check-indicator">${cell.checked ? '✓' : ''}</div>
         `;
         inspectGrid.appendChild(cellEl);
@@ -348,13 +388,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   inspectModalClose.addEventListener('click', () => inspectModal.classList.add('hidden'));
 
-  // --- Projector Mode & QR Code ---
+  // Projector Mode & QR Code
   projectorModeBtn.addEventListener('click', () => {
     projectorModal.classList.remove('hidden');
     const playerUrl = window.location.origin;
     projectorUrlText.textContent = playerUrl;
 
-    // Render QR Code
     qrcodeContainer.innerHTML = '';
     if (window.QRCode) {
       new QRCode(qrcodeContainer, {
@@ -370,7 +409,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   projectorModalClose.addEventListener('click', () => projectorModal.classList.add('hidden'));
 
-  // --- Reset Round ---
+  // Reset Round
   resetRoundBtn.addEventListener('click', async () => {
     const confirmation = prompt('Are you sure you want to RESET this round? All participants\' boards will be cleared! Type "RESET" to confirm:');
     if (confirmation === 'RESET') {
@@ -382,7 +421,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
-  // --- KPIs and Analytics ---
   function calculateKPIs() {
     const total = allParticipants.length;
     const bingos = allParticipants.filter(p => p.hasBingo || (p.completedLines && p.completedLines >= 5)).length;
@@ -434,21 +472,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-  // --- Realtime Subscription ---
   window.appDb.subscribe(
-    // Participant changed
-    async (payload) => {
+    async () => {
       await loadParticipants();
       calculateKPIs();
       renderPopularTasks();
     },
-    // Tasks changed
     async () => {
       await loadTasks();
     }
   );
 
-  // Helpers
   function escapeHtml(str) {
     if (!str) return '';
     return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -463,7 +497,4 @@ document.addEventListener('DOMContentLoaded', async () => {
       return '-';
     }
   }
-
-  // Initial load
-  loadAllData();
 });

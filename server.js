@@ -13,6 +13,11 @@ const io = new Server(server, {
 });
 
 const PORT = process.env.PORT || 3000;
+const ADMIN_USER = process.env.ADMIN_USER || 'admin';
+const ADMIN_PASS = process.env.ADMIN_PASS || 'ieee@2026';
+// Active admin tokens
+const activeAdminTokens = new Set(['admin_dev_token_ieee']);
+
 const DATA_DIR = path.join(__dirname, 'data');
 const TASKS_FILE = path.join(DATA_DIR, 'tasks.json');
 const PARTICIPANTS_FILE = path.join(DATA_DIR, 'participants.json');
@@ -45,13 +50,22 @@ function writeJSON(filePath, data) {
   }
 }
 
-// In-memory cache for fast response, synced to disk
+// In-memory cache synced to disk
 let tasks = readJSON(TASKS_FILE, []);
 let participants = readJSON(PARTICIPANTS_FILE, []);
 
 app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
+
+// Admin Authentication Middleware
+function requireAdmin(req, res, next) {
+  const token = req.headers['x-admin-token'] || req.query.token;
+  if (!token || !activeAdminTokens.has(token)) {
+    return res.status(401).json({ success: false, error: 'Unauthorized: Admin access required.' });
+  }
+  next();
+}
 
 // Shuffle utility (Fisher-Yates)
 function shuffleArray(array) {
@@ -74,7 +88,6 @@ function generateBoard(taskPool) {
   if (activePool.length >= 24) {
     selected = shuffleArray(activePool).slice(0, 24);
   } else {
-    // Fill up to 24 by looping
     let poolCopy = shuffleArray(activePool);
     while (selected.length < 24) {
       if (poolCopy.length === 0) poolCopy = shuffleArray(activePool);
@@ -91,7 +104,7 @@ function generateBoard(taskPool) {
       board.push({
         index: 12,
         id: 'free_space',
-        text: '⭐ FREE SPACE ⭐',
+        text: '⭐ IEEE FREE SPACE ⭐',
         category: 'Free',
         checked: true,
         notes: 'Host Freebie'
@@ -112,7 +125,7 @@ function generateBoard(taskPool) {
   return board;
 }
 
-// Calculate bingo lines (0 to 12 possible: 5 rows + 5 cols + 2 diagonals)
+// Calculate bingo lines
 function checkBingoLines(board) {
   let completedLines = 0;
   const lineDetails = [];
@@ -149,18 +162,37 @@ function checkBingoLines(board) {
     lineDetails.push({ type: 'diagonal', index: 2 });
   }
 
-  const hasBingo = completedLines >= 5; // Standard 5-line Bingo for 5 letters B-I-N-G-O (or >= 1 for early bingo)
+  const hasBingo = completedLines >= 5;
   return { completedLines, lineDetails, hasBingo };
 }
 
 // ==================== API ROUTES ====================
 
-// --- Tasks CRUD ---
+// --- Admin Auth ---
+app.post('/api/admin/login', (req, res) => {
+  const { username, password } = req.body;
+  if (username === ADMIN_USER && password === ADMIN_PASS) {
+    const token = `adm_${uuidv4().replace(/-/g, '')}`;
+    activeAdminTokens.add(token);
+    return res.json({ success: true, token, username });
+  }
+  res.status(401).json({ success: false, error: 'Invalid admin username or password.' });
+});
+
+app.post('/api/admin/verify', (req, res) => {
+  const token = req.headers['x-admin-token'];
+  if (token && activeAdminTokens.has(token)) {
+    return res.json({ success: true, valid: true });
+  }
+  res.status(401).json({ success: false, valid: false });
+});
+
+// --- Tasks (Public read, Admin-only write) ---
 app.get('/api/tasks', (req, res) => {
   res.json({ success: true, tasks });
 });
 
-app.post('/api/tasks', (req, res) => {
+app.post('/api/tasks', requireAdmin, (req, res) => {
   const { text, category } = req.body;
   if (!text || !text.trim()) {
     return res.status(400).json({ success: false, error: 'Task text is required' });
@@ -177,7 +209,7 @@ app.post('/api/tasks', (req, res) => {
   res.status(201).json({ success: true, task: newTask, total: tasks.length });
 });
 
-app.put('/api/tasks/:id', (req, res) => {
+app.put('/api/tasks/:id', requireAdmin, (req, res) => {
   const { id } = req.params;
   const { text, category, active } = req.body;
   const idx = tasks.findIndex(t => t.id === id);
@@ -194,7 +226,7 @@ app.put('/api/tasks/:id', (req, res) => {
   res.json({ success: true, task: tasks[idx] });
 });
 
-app.delete('/api/tasks/:id', (req, res) => {
+app.delete('/api/tasks/:id', requireAdmin, (req, res) => {
   const { id } = req.params;
   const initialLen = tasks.length;
   tasks = tasks.filter(t => t.id !== id);
@@ -206,11 +238,10 @@ app.delete('/api/tasks/:id', (req, res) => {
   res.json({ success: true, total: tasks.length });
 });
 
-// --- Join / Participant Management ---
+// --- Participant Join (Zero Login, just name) ---
 app.post('/api/join', (req, res) => {
   const { name, collegeBranch, participantId } = req.body;
 
-  // Reconnect existing participant
   if (participantId) {
     const existing = participants.find(p => p.id === participantId);
     if (existing) {
@@ -226,7 +257,6 @@ app.post('/api/join', (req, res) => {
     return res.status(400).json({ success: false, error: 'Please enter your name to start.' });
   }
 
-  // Create new player with randomized card
   const newId = `p_${uuidv4().substring(0, 8)}`;
   const board = generateBoard(tasks);
   const { completedLines, hasBingo } = checkBingoLines(board);
@@ -246,7 +276,6 @@ app.post('/api/join', (req, res) => {
   participants.push(participant);
   writeJSON(PARTICIPANTS_FILE, participants);
 
-  // Notify admin dashboard in real-time
   io.emit('participant:joined', {
     id: participant.id,
     name: participant.name,
@@ -257,27 +286,98 @@ app.post('/api/join', (req, res) => {
   res.status(201).json({ success: true, participant });
 });
 
-// Update card checked state or notes
-app.post('/api/card/update', (req, res) => {
-  const { participantId, cellIndex, checked, notes } = req.body;
+// --- TASK COMPLETION VERIFICATION & RULES ---
+// Rule 1: A task can only be filled if a name is provided.
+// Rule 2: A name cannot appear more than 2 times on an individual card.
+// Rule 3: A name cannot appear more than 8 times in all participant cards combined.
+app.post('/api/card/verify-and-fill', (req, res) => {
+  const { participantId, cellIndex, personName, action } = req.body;
+
   if (!participantId || cellIndex === undefined) {
-    return res.status(400).json({ success: false, error: 'Missing parameters' });
+    return res.status(400).json({ success: false, error: 'Missing participant or cell index.' });
   }
 
   const p = participants.find(part => part.id === participantId);
   if (!p) {
-    return res.status(404).json({ success: false, error: 'Participant not found' });
+    return res.status(404).json({ success: false, error: 'Participant not found.' });
   }
 
-  if (p.board && p.board[cellIndex]) {
-    // Can't uncheck Free Space
-    if (cellIndex !== 12) {
-      if (checked !== undefined) p.board[cellIndex].checked = Boolean(checked);
-    }
-    if (notes !== undefined) {
-      p.board[cellIndex].notes = notes.trim();
-    }
+  const cell = p.board[cellIndex];
+  if (!cell) {
+    return res.status(404).json({ success: false, error: 'Invalid cell index.' });
   }
+
+  // Cannot alter Free Space
+  if (cellIndex === 12) {
+    return res.status(400).json({ success: false, error: 'Free Space is automatically completed.' });
+  }
+
+  // Action: Unmark / Clear
+  if (action === 'clear') {
+    cell.checked = false;
+    cell.notes = '';
+
+    const stats = checkBingoLines(p.board);
+    p.completedLines = stats.completedLines;
+    p.hasBingo = stats.hasBingo;
+    p.completedCount = p.board.filter(c => c.checked).length;
+    p.lastActive = new Date().toISOString();
+
+    writeJSON(PARTICIPANTS_FILE, participants);
+    io.emit('participant:updated', { id: p.id, name: p.name, completedCount: p.completedCount, completedLines: p.completedLines });
+    return res.json({ success: true, participant: p });
+  }
+
+  // Rule 1: A task is filled only when there's a name on it
+  const cleanName = (personName || '').trim();
+  if (!cleanName || cleanName.length < 2) {
+    return res.status(400).json({
+      success: false,
+      error: 'A task can only be checked when you enter the name of the person who completed it with you!'
+    });
+  }
+
+  const normTarget = cleanName.toLowerCase();
+
+  // Rule 2: One name cannot appear more than 2 times on an individual list
+  let individualCount = 0;
+  p.board.forEach((c, idx) => {
+    if (idx !== cellIndex && c.checked && c.notes && c.notes.trim().toLowerCase() === normTarget) {
+      individualCount++;
+    }
+  });
+
+  if (individualCount >= 2) {
+    return res.status(400).json({
+      success: false,
+      error: `"${cleanName}" has already signed 2 tasks on your card. You must find other people for remaining challenges!`
+    });
+  }
+
+  // Rule 3: One name cannot appear more than 8 times in all lists combined
+  let globalCount = 0;
+  participants.forEach(otherPlayer => {
+    if (otherPlayer.board) {
+      otherPlayer.board.forEach((c, idx) => {
+        // Exclude current cell if editing
+        if (otherPlayer.id === p.id && idx === cellIndex) return;
+        if (c.checked && c.notes && c.notes.trim().toLowerCase() === normTarget) {
+          globalCount++;
+        }
+      });
+    }
+  });
+
+  if (globalCount >= 8) {
+    return res.status(400).json({
+      success: false,
+      error: `"${cleanName}" has reached the maximum of 8 signatures across the entire event! Please mingle and find someone else.`
+    });
+  }
+
+  // Validation passed -> Mark task filled
+  cell.checked = true;
+  cell.notes = cleanName;
 
   const stats = checkBingoLines(p.board);
   const wasBingo = p.hasBingo;
@@ -288,7 +388,6 @@ app.post('/api/card/update', (req, res) => {
 
   writeJSON(PARTICIPANTS_FILE, participants);
 
-  // Real-time broadcast to admin
   io.emit('participant:updated', {
     id: p.id,
     name: p.name,
@@ -297,7 +396,7 @@ app.post('/api/card/update', (req, res) => {
     hasBingo: p.hasBingo,
     newBingo: !wasBingo && p.hasBingo,
     cellIndex,
-    notes: p.board[cellIndex] ? p.board[cellIndex].notes : ''
+    notes: cell.notes
   });
 
   res.json({
@@ -313,8 +412,8 @@ app.post('/api/card/update', (req, res) => {
   });
 });
 
-// Get participants list for admin
-app.get('/api/participants', (req, res) => {
+// Admin-Protected Participant Management
+app.get('/api/participants', requireAdmin, (req, res) => {
   res.json({
     success: true,
     count: participants.length,
@@ -322,15 +421,13 @@ app.get('/api/participants', (req, res) => {
   });
 });
 
-// Get single participant board (for live inspect modal on admin)
-app.get('/api/participants/:id', (req, res) => {
+app.get('/api/participants/:id', requireAdmin, (req, res) => {
   const p = participants.find(part => part.id === req.params.id);
   if (!p) return res.status(404).json({ success: false, error: 'Not found' });
   res.json({ success: true, participant: p });
 });
 
-// Delete a participant
-app.delete('/api/participants/:id', (req, res) => {
+app.delete('/api/participants/:id', requireAdmin, (req, res) => {
   const { id } = req.params;
   const initial = participants.length;
   participants = participants.filter(p => p.id !== id);
@@ -349,7 +446,6 @@ app.get('/api/stats', (req, res) => {
   const totalTasks = tasks.length;
   const activeTasks = tasks.filter(t => t.active !== false).length;
   
-  // Most completed tasks ranking
   const taskCounts = {};
   participants.forEach(p => {
     if (p.board) {
@@ -376,17 +472,15 @@ app.get('/api/stats', (req, res) => {
   });
 });
 
-// Reset participants for a fresh round
-app.post('/api/reset-game', (req, res) => {
+// Reset participants for a fresh round (Admin only)
+app.post('/api/reset-game', requireAdmin, (req, res) => {
   participants = [];
   writeJSON(PARTICIPANTS_FILE, participants);
   io.emit('game:reset');
   res.json({ success: true, message: 'All participants and board states cleared.' });
 });
 
-// Socket connection
 io.on('connection', (socket) => {
-  // Can send quick heartbeat or initial stats
   socket.emit('connected', { timestamp: Date.now() });
 });
 
@@ -395,5 +489,6 @@ server.listen(PORT, () => {
   console.log(`🚀 IEEE Icebreaker Bingo Server is running!`);
   console.log(`📱 Player URL:    http://localhost:${PORT}`);
   console.log(`🛠️ Admin Dashboard: http://localhost:${PORT}/admin.html`);
+  console.log(`🔑 Admin Credentials: ${ADMIN_USER} / ${ADMIN_PASS}`);
   console.log(`===============================================`);
 });

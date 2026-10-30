@@ -20,7 +20,7 @@
     <header class="app-header">
       <div class="brand-badge">⚡ IEEE Student Branch • Icebreaker</div>
       <h1 class="app-title">HUMAN BINGO</h1>
-      <p class="app-subtitle">Mingle, complete tasks, find people & yell BINGO!</p>
+      <p class="app-subtitle">Meet someone new, get their name & achieve BINGO!</p>
     </header>
 
     <!-- Player Information Bar -->
@@ -55,14 +55,19 @@
       <!-- Generated dynamically by app.js -->
     </main>
 
+    <!-- Rules Banner -->
+    <div style="font-size: 0.75rem; color: var(--text-muted); text-align: center; background: rgba(255,255,255,0.03); border: 1px dashed var(--border-color); border-radius: var(--radius-sm); padding: 8px 12px;">
+      ℹ️ <strong>Rules:</strong> Each person can sign at most <strong>2 tasks</strong> on your card, and max <strong>8 times</strong> across the entire event!
+    </div>
+
     <!-- Stats & Progress Footer -->
     <footer class="stats-footer">
       <div class="stat-pill">
-        <span>Lines Complete:</span>
+        <span>Lines:</span>
         <span class="stat-val" id="lines-count">0 / 5</span>
       </div>
       <div class="stat-pill">
-        <span>Tasks Checked:</span>
+        <span>Tasks:</span>
         <span class="stat-val" id="tasks-checked-count">1 / 25</span>
       </div>
       <div class="stat-pill">
@@ -94,20 +99,40 @@
     </div>
   </div>
 
-  <!-- Note Input Modal: Who did you meet? -->
-  <div class="modal-overlay hidden" id="note-modal">
+  <!-- Verification Modal: Who did you meet? (Required to mark task) -->
+  <div class="modal-overlay hidden" id="sign-task-modal">
     <div class="modal-card">
-      <h3 id="note-task-title" style="font-size: 1.1rem; margin-bottom: 0.5rem;">Task Details</h3>
-      <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem;">Who did you meet for this task?</p>
+      <span class="badge" id="modal-task-category" style="margin-bottom: 8px; display: inline-block;">TASK</span>
+      <h3 id="modal-task-text" style="font-size: 1.15rem; margin-bottom: 0.5rem; line-height: 1.35;">Task Description</h3>
+      <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 1rem;">
+        Find someone who fits this task and enter their name to sign your square:
+      </p>
       
-      <div class="form-group">
-        <input type="text" id="note-input" class="input-field" placeholder="Name or college handle...">
+      <!-- Error Message Box -->
+      <div id="modal-error-box" style="display: none; background: rgba(244, 63, 94, 0.15); border: 1px solid rgba(244, 63, 94, 0.4); color: #fecdd3; padding: 10px; border-radius: 8px; font-size: 0.82rem; margin-bottom: 1rem; text-align: left;">
       </div>
 
-      <div style="display: flex; gap: 8px; margin-top: 1rem;">
-        <button type="button" class="btn-primary" id="save-note-btn" style="flex: 2;">Save Note</button>
-        <button type="button" class="icon-btn" id="close-note-btn" style="flex: 1; justify-content: center;">Close</button>
-      </div>
+      <form id="sign-task-form">
+        <div class="form-group">
+          <label for="person-name-input">Person's Full Name *</label>
+          <input type="text" id="person-name-input" class="input-field" placeholder="e.g. Rahul Sharma" required autocomplete="off">
+          <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 4px;">
+            ⚠️ Max 2 squares per person on your board.
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 8px; margin-top: 1.25rem;">
+          <button type="submit" class="btn-primary" id="confirm-sign-btn" style="flex: 2;">
+            Confirm & Mark Task ✓
+          </button>
+          <button type="button" class="btn btn-danger" id="clear-task-btn" style="display: none; padding: 8px 12px; font-size: 0.85rem;">
+            Clear
+          </button>
+          <button type="button" class="icon-btn" id="cancel-sign-btn" style="flex: 1; justify-content: center;">
+            Cancel
+          </button>
+        </div>
+      </form>
     </div>
   </div>
 
@@ -117,10 +142,10 @@
       <div class="victory-icon">🏆</div>
       <h2 style="color: var(--accent-gold); font-size: 2rem;">BINGO!</h2>
       <p style="color: #e2e8f0; font-size: 1rem; margin-bottom: 1.5rem;">
-        Incredible job! You've achieved a full B-I-N-G-O! Show your screen to the IEEE event organizers to claim your prize!
+        Incredible job! You've completed 5 full lines! Show your card to an IEEE organizer to claim your reward!
       </p>
       <button class="btn-primary" id="continue-playing-btn" style="background: var(--accent-gold); color: #000; font-weight: 800;">
-        Keep Playing & Mingle 🎊
+        Keep Mingling & Playing 🎊
       </button>
     </div>
   </div>
