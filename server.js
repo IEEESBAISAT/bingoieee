@@ -694,7 +694,7 @@ server.listen(PORT, () => {
   console.log(`===============================================`);
   console.log(`🚀 IEEE Icebreaker Bingo Server is running!`);
   console.log(`📱 Player URL:    http://localhost:${PORT}`);
-  console.log(`🛠️ Admin Dashboard: http://localhost:${PORT}/admin.html`);
+  console.log(`🛠️ Admin Dashboard: http://localhost:${PORT}/admin12.html`);
   console.log(`🔑 Admin Credentials: ${ADMIN_USER} / ${ADMIN_PASS}`);
   console.log(`===============================================`);
 });
