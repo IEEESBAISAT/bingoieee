@@ -1,4 +1,4 @@
-// Web Audio API Sound Synthesizer (Zero external audio file dependencies!)
+// Rockstar Games / GTA Style Audio Synthesizer (Web Audio API)
 class SoundEffects {
   constructor() {
     this.ctx = null;
@@ -17,6 +17,7 @@ class SoundEffects {
     }
   }
 
+  // Tactical HUD Click
   playPop() {
     if (!this.enabled) return;
     this.init();
@@ -25,73 +26,81 @@ class SoundEffects {
     const gain = this.ctx.createGain();
     const now = this.ctx.currentTime;
 
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(400, now);
-    osc.frequency.exponentialRampToValueAtTime(800, now + 0.08);
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(800, now);
+    osc.frequency.exponentialRampToValueAtTime(200, now + 0.04);
 
-    gain.gain.setValueAtTime(0.25, now);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+    gain.gain.setValueAtTime(0.2, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
 
     osc.connect(gain);
     gain.connect(this.ctx.destination);
 
     osc.start(now);
-    osc.stop(now + 0.09);
+    osc.stop(now + 0.05);
   }
 
+  // Objective Check / Line Completed Chime (GTA style resonant bell)
   playLineChime() {
     if (!this.enabled) return;
     this.init();
     if (!this.ctx) return;
-    const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
-    notes.forEach((freq, i) => {
+
+    const freqs = [587.33, 880.00, 1174.66]; // D5, A5, D6
+    freqs.forEach((freq, idx) => {
       const osc = this.ctx.createOscillator();
       const gain = this.ctx.createGain();
-      const now = this.ctx.currentTime + (i * 0.07);
+      const now = this.ctx.currentTime + (idx * 0.06);
 
       osc.type = 'triangle';
       osc.frequency.setValueAtTime(freq, now);
 
-      gain.gain.setValueAtTime(0.2, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+      gain.gain.setValueAtTime(0.28, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
 
       osc.connect(gain);
       gain.connect(this.ctx.destination);
 
       osc.start(now);
-      osc.stop(now + 0.35);
+      osc.stop(now + 0.5);
     });
   }
 
+  // Iconic GTA "MISSION PASSED" Brass Swell Fanfare
   playBingoFanfare() {
     if (!this.enabled) return;
     this.init();
     if (!this.ctx) return;
-    // Major chord triumphant fanfare
-    const fanfare = [
-      { f: 523.25, d: 0.12 }, // C
-      { f: 659.25, d: 0.12 }, // E
-      { f: 783.99, d: 0.12 }, // G
-      { f: 1046.50, d: 0.35 } // High C
+
+    const chords = [
+      // Chord 1 (Tension)
+      { f: [349.23, 440.00, 523.25], t: 0, d: 0.35 },
+      // Chord 2 (Lift)
+      { f: [392.00, 493.88, 587.33], t: 0.32, d: 0.35 },
+      // Chord 3 (Triumphant Resolution - High Power Brass)
+      { f: [523.25, 659.25, 783.99, 1046.50], t: 0.65, d: 1.2 }
     ];
 
-    let t = this.ctx.currentTime;
-    fanfare.forEach(item => {
-      const osc = this.ctx.createOscillator();
-      const gain = this.ctx.createGain();
+    const baseTime = this.ctx.currentTime;
 
-      osc.type = 'square';
-      osc.frequency.setValueAtTime(item.f, t);
+    chords.forEach(c => {
+      c.f.forEach(freq => {
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        const startTime = baseTime + c.t;
 
-      gain.gain.setValueAtTime(0.18, t);
-      gain.gain.exponentialRampToValueAtTime(0.001, t + item.d);
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(freq, startTime);
 
-      osc.connect(gain);
-      gain.connect(this.ctx.destination);
+        gain.gain.setValueAtTime(0.12, startTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, startTime + c.d);
 
-      osc.start(t);
-      osc.stop(t + item.d + 0.02);
-      t += item.d;
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        osc.start(startTime);
+        osc.stop(startTime + c.d + 0.05);
+      });
     });
   }
 }
