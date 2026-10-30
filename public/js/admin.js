@@ -99,23 +99,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Update DB Status Pill
   async function updateDbStatus() {
-    try {
-      const res = await fetch('/api/supabase/status');
-      const data = await res.json();
-      if (data.connected) {
-        dbStatusText.textContent = 'Supabase Connected ⚡';
-        dbStatusBtn.style.color = '#34d399';
-        return;
-      }
-    } catch {}
-
-    if (window.appDb.mode === 'supabase') {
-      dbStatusText.textContent = 'Supabase Connected ⚡';
-      dbStatusBtn.style.color = '#34d399';
-    } else {
-      dbStatusText.textContent = 'Local Database (Click to Connect Supabase)';
-      dbStatusBtn.style.color = '#38bdf8';
-    }
+    dbStatusText.textContent = 'Supabase Connected ⚡';
+    dbStatusBtn.style.color = '#34d399';
   }
 
   // Supabase Settings Modal

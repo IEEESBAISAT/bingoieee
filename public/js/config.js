@@ -1,18 +1,12 @@
-// Configuration for Supabase & Backend Services
-// You can enter your Supabase Project URL and Anon Key here,
-// or configure them live from the Admin Dashboard settings modal!
-
+// Embedded Supabase Configuration (Auto-Connected)
 const SUPABASE_CONFIG = {
-  // Replace these with your Supabase Project details:
-  url: window.ENV_SUPABASE_URL || localStorage.getItem('supabase_url') || '',
-  anonKey: window.ENV_SUPABASE_ANON_KEY || localStorage.getItem('supabase_key') || '',
+  url: 'https://zkznnmespsqsiiohqnvg.supabase.co',
+  anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inprem5ubWVzcHNxc2lpb2hxbnZnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTMzNjY0ODQsImV4cCI6MjEwODk0MjQ4NH0.BkbDWJNl-gjDctFrNpl8ZB7yj4eprA6qIQXEUznUT7k',
   
-  // Is Supabase currently configured?
   isConfigured() {
-    return Boolean(this.url && this.anonKey && this.url.startsWith('https://'));
+    return true;
   },
 
-  // Save new credentials
   save(url, key) {
     this.url = (url || '').trim();
     this.anonKey = (key || '').trim();

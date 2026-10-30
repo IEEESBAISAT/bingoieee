@@ -55,30 +55,30 @@ function writeJSON(filePath, data) {
 // In-memory cache synced to disk
 let tasks = readJSON(TASKS_FILE, []);
 let participants = readJSON(PARTICIPANTS_FILE, []);
+const DEFAULT_SB_URL = 'https://zkznnmespsqsiiohqnvg.supabase.co';
+const DEFAULT_SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inprem5ubWVzcHNxc2lpb2hxbnZnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTMzNjY0ODQsImV4cCI6MjEwODk0MjQ4NH0.BkbDWJNl-gjDctFrNpl8ZB7yj4eprA6qIQXEUznUT7k';
+
 let sbConfig = readJSON(SB_CONFIG_FILE, {
-  url: process.env.SUPABASE_URL || '',
-  anonKey: process.env.SUPABASE_ANON_KEY || ''
+  url: process.env.SUPABASE_URL || DEFAULT_SB_URL,
+  anonKey: process.env.SUPABASE_ANON_KEY || DEFAULT_SB_KEY
 });
 
 // Supabase Client instance
 let supabase = null;
 
 function initSupabase() {
-  const url = process.env.SUPABASE_URL || sbConfig.url;
-  const key = process.env.SUPABASE_ANON_KEY || sbConfig.anonKey;
+  const url = process.env.SUPABASE_URL || sbConfig.url || DEFAULT_SB_URL;
+  const key = process.env.SUPABASE_ANON_KEY || sbConfig.anonKey || DEFAULT_SB_KEY;
 
   if (url && key && url.startsWith('https://')) {
     try {
       supabase = createClient(url, key);
-      console.log(`⚡ Connected to Supabase Cloud: ${url}`);
+      console.log(`⚡ Auto-connected to Supabase Cloud: ${url}`);
       initialSupabaseSync();
     } catch (e) {
       console.error('Failed to initialize Supabase client:', e);
       supabase = null;
     }
-  } else {
-    supabase = null;
-    console.log('📁 Operating in Local JSON mode (Supabase not configured yet)');
   }
 }
 
