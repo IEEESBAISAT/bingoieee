@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
@@ -5,6 +6,7 @@ const fs = require('fs');
 const path = require('path');
 const cors = require('cors');
 const { v4: uuidv4 } = require('uuid');
+const { createClient } = require('@supabase/supabase-js');
 
 const app = express();
 const server = http.createServer(app);
@@ -15,12 +17,12 @@ const io = new Server(server, {
 const PORT = process.env.PORT || 3000;
 const ADMIN_USER = process.env.ADMIN_USER || 'admin';
 const ADMIN_PASS = process.env.ADMIN_PASS || 'ieee@2026';
-// Active admin tokens
 const activeAdminTokens = new Set(['admin_dev_token_ieee']);
 
 const DATA_DIR = path.join(__dirname, 'data');
 const TASKS_FILE = path.join(DATA_DIR, 'tasks.json');
 const PARTICIPANTS_FILE = path.join(DATA_DIR, 'participants.json');
+const SB_CONFIG_FILE = path.join(DATA_DIR, 'supabase_config.json');
 
 // Ensure data directory exists
 if (!fs.existsSync(DATA_DIR)) {
@@ -53,6 +55,76 @@ function writeJSON(filePath, data) {
 // In-memory cache synced to disk
 let tasks = readJSON(TASKS_FILE, []);
 let participants = readJSON(PARTICIPANTS_FILE, []);
+let sbConfig = readJSON(SB_CONFIG_FILE, {
+  url: process.env.SUPABASE_URL || '',
+  anonKey: process.env.SUPABASE_ANON_KEY || ''
+});
+
+// Supabase Client instance
+let supabase = null;
+
+function initSupabase() {
+  const url = process.env.SUPABASE_URL || sbConfig.url;
+  const key = process.env.SUPABASE_ANON_KEY || sbConfig.anonKey;
+
+  if (url && key && url.startsWith('https://')) {
+    try {
+      supabase = createClient(url, key);
+      console.log(`⚡ Connected to Supabase Cloud: ${url}`);
+      initialSupabaseSync();
+    } catch (e) {
+      console.error('Failed to initialize Supabase client:', e);
+      supabase = null;
+    }
+  } else {
+    supabase = null;
+    console.log('📁 Operating in Local JSON mode (Supabase not configured yet)');
+  }
+}
+
+// Sync existing local tasks & participants into Supabase if empty
+async function initialSupabaseSync() {
+  if (!supabase) return;
+  try {
+    // 1. Sync tasks
+    const { data: remoteTasks, error: taskErr } = await supabase.from('tasks').select('id, text');
+    if (!taskErr) {
+      if (remoteTasks && remoteTasks.length > 0) {
+        console.log(`📦 Loaded ${remoteTasks.length} tasks from Supabase.`);
+      } else if (tasks.length > 0) {
+        console.log(`📤 Seeding ${tasks.length} local tasks to Supabase...`);
+        const rows = tasks.map(t => ({
+          text: t.text,
+          category: t.category || 'General',
+          is_active: t.active !== false
+        }));
+        await supabase.from('tasks').insert(rows);
+      }
+    }
+
+    // 2. Fetch existing participants from Supabase into memory
+    const { data: remoteParts, error: partErr } = await supabase.from('participants').select('*');
+    if (!partErr && remoteParts && remoteParts.length > 0) {
+      console.log(`👥 Loaded ${remoteParts.length} participants from Supabase.`);
+      participants = remoteParts.map(p => ({
+        id: p.id,
+        name: p.name,
+        collegeBranch: p.branch || '',
+        board: p.board,
+        completedLines: p.completed_lines || 0,
+        completedCount: p.completed_count || 1,
+        hasBingo: Boolean(p.has_bingo),
+        joinedAt: p.joined_at,
+        lastActive: p.last_active
+      }));
+      writeJSON(PARTICIPANTS_FILE, participants);
+    }
+  } catch (err) {
+    console.error('Initial Supabase sync notice:', err.message);
+  }
+}
+
+initSupabase();
 
 app.use(cors());
 app.use(express.json());
@@ -148,14 +220,13 @@ function checkBingoLines(board) {
     }
   }
 
-  // Main diagonal (\)
+  // Diagonals
   const d1 = [0, 6, 12, 18, 24];
   if (d1.every(idx => board[idx] && board[idx].checked)) {
     completedLines++;
     lineDetails.push({ type: 'diagonal', index: 1 });
   }
 
-  // Anti-diagonal (/)
   const d2 = [4, 8, 12, 16, 20];
   if (d2.every(idx => board[idx] && board[idx].checked)) {
     completedLines++;
@@ -167,6 +238,31 @@ function checkBingoLines(board) {
 }
 
 // ==================== API ROUTES ====================
+
+// --- Supabase Live Configuration ---
+app.get('/api/supabase/status', (req, res) => {
+  res.json({
+    connected: Boolean(supabase),
+    url: process.env.SUPABASE_URL || sbConfig.url || ''
+  });
+});
+
+app.post('/api/supabase/config', (req, res) => {
+  const { url, anonKey } = req.body;
+  if (!url || !anonKey) {
+    return res.status(400).json({ success: false, error: 'URL and Anon Key are required.' });
+  }
+
+  sbConfig = { url: url.trim(), anonKey: anonKey.trim() };
+  writeJSON(SB_CONFIG_FILE, sbConfig);
+  initSupabase();
+
+  res.json({
+    success: true,
+    connected: Boolean(supabase),
+    message: supabase ? 'Supabase connected successfully!' : 'Connection attempted.'
+  });
+});
 
 // --- Admin Auth ---
 app.post('/api/admin/login', (req, res) => {
@@ -187,12 +283,12 @@ app.post('/api/admin/verify', (req, res) => {
   res.status(401).json({ success: false, valid: false });
 });
 
-// --- Tasks (Public read, Admin-only write) ---
+// --- Tasks ---
 app.get('/api/tasks', (req, res) => {
   res.json({ success: true, tasks });
 });
 
-app.post('/api/tasks', requireAdmin, (req, res) => {
+app.post('/api/tasks', requireAdmin, async (req, res) => {
   const { text, category } = req.body;
   if (!text || !text.trim()) {
     return res.status(400).json({ success: false, error: 'Task text is required' });
@@ -205,11 +301,25 @@ app.post('/api/tasks', requireAdmin, (req, res) => {
   };
   tasks.push(newTask);
   writeJSON(TASKS_FILE, tasks);
+
+  // Sync to Supabase
+  if (supabase) {
+    try {
+      await supabase.from('tasks').insert([{
+        text: newTask.text,
+        category: newTask.category,
+        is_active: true
+      }]);
+    } catch (e) {
+      console.error('Supabase task insert err:', e);
+    }
+  }
+
   io.emit('tasks:updated', { count: tasks.length });
   res.status(201).json({ success: true, task: newTask, total: tasks.length });
 });
 
-app.put('/api/tasks/:id', requireAdmin, (req, res) => {
+app.put('/api/tasks/:id', requireAdmin, async (req, res) => {
   const { id } = req.params;
   const { text, category, active } = req.body;
   const idx = tasks.findIndex(t => t.id === id);
@@ -222,24 +332,47 @@ app.put('/api/tasks/:id', requireAdmin, (req, res) => {
   if (active !== undefined) tasks[idx].active = Boolean(active);
 
   writeJSON(TASKS_FILE, tasks);
+
+  if (supabase) {
+    try {
+      await supabase.from('tasks').update({
+        text: tasks[idx].text,
+        category: tasks[idx].category,
+        is_active: tasks[idx].active
+      }).eq('text', tasks[idx].text);
+    } catch (e) {
+      console.error('Supabase task update err:', e);
+    }
+  }
+
   io.emit('tasks:updated', { count: tasks.length });
   res.json({ success: true, task: tasks[idx] });
 });
 
-app.delete('/api/tasks/:id', requireAdmin, (req, res) => {
+app.delete('/api/tasks/:id', requireAdmin, async (req, res) => {
   const { id } = req.params;
+  const taskToDelete = tasks.find(t => t.id === id);
   const initialLen = tasks.length;
   tasks = tasks.filter(t => t.id !== id);
   if (tasks.length === initialLen) {
     return res.status(404).json({ success: false, error: 'Task not found' });
   }
   writeJSON(TASKS_FILE, tasks);
+
+  if (supabase && taskToDelete) {
+    try {
+      await supabase.from('tasks').delete().eq('text', taskToDelete.text);
+    } catch (e) {
+      console.error('Supabase task delete err:', e);
+    }
+  }
+
   io.emit('tasks:updated', { count: tasks.length });
   res.json({ success: true, total: tasks.length });
 });
 
 // --- Participant Join (Zero Login, just name) ---
-app.post('/api/join', (req, res) => {
+app.post('/api/join', async (req, res) => {
   const { name, collegeBranch, participantId } = req.body;
 
   if (participantId) {
@@ -249,6 +382,16 @@ app.post('/api/join', (req, res) => {
       if (collegeBranch) existing.collegeBranch = collegeBranch.trim();
       existing.lastActive = new Date().toISOString();
       writeJSON(PARTICIPANTS_FILE, participants);
+      
+      if (supabase) {
+        try {
+          await supabase.from('participants').update({
+            name: existing.name,
+            branch: existing.collegeBranch,
+            last_active: existing.lastActive
+          }).eq('id', existing.id);
+        } catch (e) {}
+      }
       return res.json({ success: true, participant: existing, isReturning: true });
     }
   }
@@ -257,7 +400,8 @@ app.post('/api/join', (req, res) => {
     return res.status(400).json({ success: false, error: 'Please enter your name to start.' });
   }
 
-  const newId = `p_${uuidv4().substring(0, 8)}`;
+  // Use valid UUID for seamless PostgreSQL compatibility
+  const newId = uuidv4();
   const board = generateBoard(tasks);
   const { completedLines, hasBingo } = checkBingoLines(board);
 
@@ -276,6 +420,30 @@ app.post('/api/join', (req, res) => {
   participants.push(participant);
   writeJSON(PARTICIPANTS_FILE, participants);
 
+  // Directly insert participant into Supabase!
+  if (supabase) {
+    try {
+      const { error: sbErr } = await supabase.from('participants').insert([{
+        id: participant.id,
+        name: participant.name,
+        branch: participant.collegeBranch,
+        board: participant.board,
+        completed_lines: participant.completedLines,
+        completed_count: participant.completedCount,
+        has_bingo: participant.hasBingo,
+        joined_at: participant.joinedAt,
+        last_active: participant.lastActive
+      }]);
+      if (sbErr) {
+        console.error('Supabase participant insert error:', sbErr.message);
+      } else {
+        console.log(`✅ Participant "${participant.name}" synced to Supabase!`);
+      }
+    } catch (e) {
+      console.error('Supabase participant sync err:', e);
+    }
+  }
+
   io.emit('participant:joined', {
     id: participant.id,
     name: participant.name,
@@ -287,10 +455,7 @@ app.post('/api/join', (req, res) => {
 });
 
 // --- TASK COMPLETION VERIFICATION & RULES ---
-// Rule 1: A task can only be filled if a name is provided.
-// Rule 2: A name cannot appear more than 2 times on an individual card.
-// Rule 3: A name cannot appear more than 8 times in all participant cards combined.
-app.post('/api/card/verify-and-fill', (req, res) => {
+app.post('/api/card/verify-and-fill', async (req, res) => {
   const { participantId, cellIndex, personName, action } = req.body;
 
   if (!participantId || cellIndex === undefined) {
@@ -307,12 +472,11 @@ app.post('/api/card/verify-and-fill', (req, res) => {
     return res.status(404).json({ success: false, error: 'Invalid cell index.' });
   }
 
-  // Cannot alter Free Space
   if (cellIndex === 12) {
     return res.status(400).json({ success: false, error: 'Free Space is automatically completed.' });
   }
 
-  // Action: Unmark / Clear
+  // Clear / Unmark action
   if (action === 'clear') {
     cell.checked = false;
     cell.notes = '';
@@ -324,6 +488,20 @@ app.post('/api/card/verify-and-fill', (req, res) => {
     p.lastActive = new Date().toISOString();
 
     writeJSON(PARTICIPANTS_FILE, participants);
+
+    // Sync update to Supabase
+    if (supabase) {
+      try {
+        await supabase.from('participants').update({
+          board: p.board,
+          completed_lines: p.completedLines,
+          completed_count: p.completedCount,
+          has_bingo: p.hasBingo,
+          last_active: p.lastActive
+        }).eq('id', p.id);
+      } catch (e) {}
+    }
+
     io.emit('participant:updated', { id: p.id, name: p.name, completedCount: p.completedCount, completedLines: p.completedLines });
     return res.json({ success: true, participant: p });
   }
@@ -359,7 +537,6 @@ app.post('/api/card/verify-and-fill', (req, res) => {
   participants.forEach(otherPlayer => {
     if (otherPlayer.board) {
       otherPlayer.board.forEach((c, idx) => {
-        // Exclude current cell if editing
         if (otherPlayer.id === p.id && idx === cellIndex) return;
         if (c.checked && c.notes && c.notes.trim().toLowerCase() === normTarget) {
           globalCount++;
@@ -387,6 +564,21 @@ app.post('/api/card/verify-and-fill', (req, res) => {
   p.lastActive = new Date().toISOString();
 
   writeJSON(PARTICIPANTS_FILE, participants);
+
+  // Sync update to Supabase!
+  if (supabase) {
+    try {
+      await supabase.from('participants').update({
+        board: p.board,
+        completed_lines: p.completedLines,
+        completed_count: p.completedCount,
+        has_bingo: p.hasBingo,
+        last_active: p.lastActive
+      }).eq('id', p.id);
+    } catch (e) {
+      console.error('Supabase participant update err:', e);
+    }
+  }
 
   io.emit('participant:updated', {
     id: p.id,
@@ -427,7 +619,7 @@ app.get('/api/participants/:id', requireAdmin, (req, res) => {
   res.json({ success: true, participant: p });
 });
 
-app.delete('/api/participants/:id', requireAdmin, (req, res) => {
+app.delete('/api/participants/:id', requireAdmin, async (req, res) => {
   const { id } = req.params;
   const initial = participants.length;
   participants = participants.filter(p => p.id !== id);
@@ -435,6 +627,13 @@ app.delete('/api/participants/:id', requireAdmin, (req, res) => {
     return res.status(404).json({ success: false, error: 'Not found' });
   }
   writeJSON(PARTICIPANTS_FILE, participants);
+
+  if (supabase) {
+    try {
+      await supabase.from('participants').delete().eq('id', id);
+    } catch (e) {}
+  }
+
   io.emit('participant:removed', { id, count: participants.length });
   res.json({ success: true, count: participants.length });
 });
@@ -473,9 +672,16 @@ app.get('/api/stats', (req, res) => {
 });
 
 // Reset participants for a fresh round (Admin only)
-app.post('/api/reset-game', requireAdmin, (req, res) => {
+app.post('/api/reset-game', requireAdmin, async (req, res) => {
   participants = [];
   writeJSON(PARTICIPANTS_FILE, participants);
+
+  if (supabase) {
+    try {
+      await supabase.from('participants').delete().neq('name', '___impossible_entry___');
+    } catch (e) {}
+  }
+
   io.emit('game:reset');
   res.json({ success: true, message: 'All participants and board states cleared.' });
 });

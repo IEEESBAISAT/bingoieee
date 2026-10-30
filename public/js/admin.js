@@ -98,7 +98,17 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 
   // Update DB Status Pill
-  function updateDbStatus() {
+  async function updateDbStatus() {
+    try {
+      const res = await fetch('/api/supabase/status');
+      const data = await res.json();
+      if (data.connected) {
+        dbStatusText.textContent = 'Supabase Connected ⚡';
+        dbStatusBtn.style.color = '#34d399';
+        return;
+      }
+    } catch {}
+
     if (window.appDb.mode === 'supabase') {
       dbStatusText.textContent = 'Supabase Connected ⚡';
       dbStatusBtn.style.color = '#34d399';
@@ -109,32 +119,61 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   // Supabase Settings Modal
-  dbStatusBtn.addEventListener('click', () => {
-    sbUrlInput.value = window.SUPABASE_CONFIG.url || '';
+  dbStatusBtn.addEventListener('click', async () => {
+    try {
+      const res = await fetch('/api/supabase/status');
+      const data = await res.json();
+      if (data.url) sbUrlInput.value = data.url;
+    } catch {}
+    if (!sbUrlInput.value) sbUrlInput.value = window.SUPABASE_CONFIG.url || '';
     sbKeyInput.value = window.SUPABASE_CONFIG.anonKey || '';
     supabaseModal.classList.remove('hidden');
   });
 
   supabaseModalClose.addEventListener('click', () => supabaseModal.classList.add('hidden'));
 
-  saveSupabaseBtn.addEventListener('click', () => {
+  saveSupabaseBtn.addEventListener('click', async () => {
     const url = sbUrlInput.value.trim();
     const key = sbKeyInput.value.trim();
     if (!url || !key) {
       alert('Please provide both Supabase URL and Anon Key');
       return;
     }
-    window.SUPABASE_CONFIG.save(url, key);
-    window.appDb.init();
-    updateDbStatus();
-    supabaseModal.classList.add('hidden');
-    loadAllData();
+    saveSupabaseBtn.textContent = 'Connecting & Syncing...';
+    saveSupabaseBtn.disabled = true;
+
+    try {
+      // 1. Send keys to server so all players automatically sync to Supabase!
+      await fetch('/api/supabase/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url, anonKey: key })
+      });
+
+      // 2. Save in client adapter as well
+      window.SUPABASE_CONFIG.save(url, key);
+      window.appDb.init();
+      await updateDbStatus();
+      supabaseModal.classList.add('hidden');
+      await loadAllData();
+      alert('Supabase connected successfully! All tasks and participants are now synced to your Supabase tables.');
+    } catch (err) {
+      alert('Error connecting to Supabase: ' + err.message);
+    } finally {
+      saveSupabaseBtn.textContent = 'Save & Connect';
+      saveSupabaseBtn.disabled = false;
+    }
   });
 
-  disconnectSupabaseBtn.addEventListener('click', () => {
+  disconnectSupabaseBtn.addEventListener('click', async () => {
+    await fetch('/api/supabase/config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: '', anonKey: '' })
+    });
     window.SUPABASE_CONFIG.save('', '');
     window.appDb.init();
-    updateDbStatus();
+    await updateDbStatus();
     supabaseModal.classList.add('hidden');
     loadAllData();
   });
