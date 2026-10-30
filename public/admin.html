@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Dashboard • IEEE Icebreaker Bingo</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/admin.css">
+  <link rel="stylesheet" href="css/style.css">
+  <!-- Supabase & QRCode -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script src="/socket.io/socket.io.js"></script>
+</head>
+<body>
+
+  <div class="admin-layout">
+    <!-- Navbar -->
+    <header class="admin-navbar">
+      <div class="brand">
+        <div class="brand-icon">⚡</div>
+        <div class="brand-text">
+          <h1>IEEE Bingo Console</h1>
+          <p>Real-Time Icebreaker Management</p>
+        </div>
+      </div>
+
+      <div class="nav-actions">
+        <!-- DB Mode Pill -->
+        <div class="db-status-badge" id="db-status-btn" title="Click to configure Supabase Database">
+          <span class="status-dot"></span>
+          <span id="db-status-text">Checking Database...</span>
+        </div>
+
+        <button class="btn btn-primary" id="projector-mode-btn">
+          <span>📺 Projector Mode & QR</span>
+        </button>
+
+        <a href="/" target="_blank" class="btn" title="Open player card in new tab">
+          <span>🎮 Open Player View</span>
+        </a>
+
+        <button class="btn btn-danger" id="reset-round-btn" title="Wipe participants for a fresh round">
+          <span>🔄 Reset Round</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="admin-container">
+      
+      <!-- KPI Stats Grid -->
+      <section class="kpi-grid">
+        <div class="kpi-card">
+          <div class="kpi-icon blue">👥</div>
+          <div class="kpi-info">
+            <h3>Total Participants</h3>
+            <div class="kpi-value" id="kpi-participants">0</div>
+          </div>
+        </div>
+
+        <div class="kpi-card">
+          <div class="kpi-icon gold">🏆</div>
+          <div class="kpi-info">
+            <h3>Bingos Achieved</h3>
+            <div class="kpi-value" id="kpi-bingos">0</div>
+          </div>
+        </div>
+
+        <div class="kpi-card">
+          <div class="kpi-icon purple">📋</div>
+          <div class="kpi-info">
+            <h3>Active Task Pool</h3>
+            <div class="kpi-value" id="kpi-tasks">0</div>
+          </div>
+        </div>
+
+        <div class="kpi-card">
+          <div class="kpi-icon emerald">📈</div>
+          <div class="kpi-info">
+            <h3>Avg Progress</h3>
+            <div class="kpi-value" id="kpi-avg-progress">0%</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Tab Navigation -->
+      <nav class="tab-bar">
+        <button class="tab-btn active" data-tab="participants-tab">👥 Live Participants (<span id="tab-participants-count">0</span>)</button>
+        <button class="tab-btn" data-tab="tasks-tab">📝 Task Manager (<span id="tab-tasks-count">0</span>)</button>
+        <button class="tab-btn" data-tab="stats-tab">📊 Popular Icebreakers</button>
+      </nav>
+
+      <!-- TAB 1: Live Participants Table -->
+      <section class="tab-panel active" id="participants-tab">
+        <div class="section-card">
+          <div class="section-header">
+            <div>
+              <h2 class="section-title">Active Event Participants</h2>
+              <p style="font-size: 0.85rem; color: var(--text-muted);">Real-time monitoring of participants and their completed lines.</p>
+            </div>
+            <div style="display: flex; gap: 10px;">
+              <input type="text" id="participant-search" placeholder="Search by name or branch..." style="padding: 8px 12px; background: var(--bg-surface); border: 1px solid var(--border); border-radius: 8px; color: #fff; font-size: 0.85rem; width: 220px;">
+              <button class="btn" id="refresh-participants-btn">↻ Refresh</button>
+            </div>
+          </div>
+
+          <div class="table-container">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Participant</th>
+                  <th>Branch / Major</th>
+                  <th>Tasks Checked</th>
+                  <th>Lines Done</th>
+                  <th>Bingo Status</th>
+                  <th>Last Active</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="participants-table-body">
+                <tr>
+                  <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 2rem;">
+                    No participants yet. Share the QR code or link to begin!
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 2: Dynamic Task Manager (Not hardcoded!) -->
+      <section class="tab-panel" id="tasks-tab">
+        <div class="section-card">
+          <div class="section-header">
+            <div>
+              <h2 class="section-title">Add & Manage Icebreaker Tasks</h2>
+              <p style="font-size: 0.85rem; color: var(--text-muted);">
+                Tasks are automatically randomized and served to participants' 5x5 boards from this dynamic pool.
+              </p>
+            </div>
+            <button class="btn" id="seed-default-tasks-btn">✨ Load IEEE Presets</button>
+          </div>
+
+          <!-- Add Task Form -->
+          <form class="task-form" id="add-task-form">
+            <input type="text" id="new-task-text" placeholder="Enter task / challenge (e.g., 'Find someone who solved a Rubik\'s cube 🧊')" required>
+            <select id="new-task-category">
+              <option value="Tech">💻 Tech</option>
+              <option value="College">🎓 College Life</option>
+              <option value="Social">🤝 Social</option>
+              <option value="Fun" selected>🎉 Fun & Quirky</option>
+            </select>
+            <button type="submit" class="btn btn-primary">+ Add Task</button>
+          </form>
+
+          <!-- Category Filter Bar -->
+          <div style="display: flex; gap: 8px; margin-bottom: 1rem; flex-wrap: wrap;">
+            <button class="btn task-filter-btn active" data-category="ALL" style="font-size: 0.8rem; padding: 4px 10px;">All</button>
+            <button class="btn task-filter-btn" data-category="Tech" style="font-size: 0.8rem; padding: 4px 10px;">Tech</button>
+            <button class="btn task-filter-btn" data-category="College" style="font-size: 0.8rem; padding: 4px 10px;">College</button>
+            <button class="btn task-filter-btn" data-category="Social" style="font-size: 0.8rem; padding: 4px 10px;">Social</button>
+            <button class="btn task-filter-btn" data-category="Fun" style="font-size: 0.8rem; padding: 4px 10px;">Fun</button>
+          </div>
+
+          <!-- Task Cards Grid -->
+          <div class="tasks-grid" id="tasks-grid">
+            <!-- Populated dynamically -->
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 3: Popular Icebreaker Analytics -->
+      <section class="tab-panel" id="stats-tab">
+        <div class="section-card">
+          <div class="section-header">
+            <h2 class="section-title">Most Popular Completed Icebreakers</h2>
+            <p style="font-size: 0.85rem; color: var(--text-muted);">See which tasks have sparked the most conversations.</p>
+          </div>
+          <div id="popular-tasks-list" style="display: flex; flex-direction: column; gap: 10px;">
+            <!-- Populated dynamically -->
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- MODAL: Inspect Participant Board -->
+  <div class="modal-overlay hidden" id="inspect-modal">
+    <div class="modal-content" style="max-width: 650px;">
+      <button class="modal-close" id="inspect-modal-close">&times;</button>
+      <div style="margin-bottom: 1rem;">
+        <h3 id="inspect-name" style="font-size: 1.25rem;">Participant Card</h3>
+        <p id="inspect-details" style="font-size: 0.82rem; color: var(--text-muted);">Live 5x5 board state</p>
+      </div>
+
+      <div class="bingo-grid" id="inspect-grid" style="pointer-events: none; max-width: 580px; margin: 0 auto;">
+        <!-- Injected board -->
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Stage / Projector Screen with Live QR Code -->
+  <div class="modal-overlay hidden" id="projector-modal">
+    <div class="modal-content" style="max-width: 600px; text-align: center;">
+      <button class="modal-close" id="projector-modal-close">&times;</button>
+      <div class="projector-banner">
+        <h2>SCAN & PLAY!</h2>
+        <p style="color: var(--text-muted); font-size: 1rem;">Join the IEEE Icebreaker Bingo on your phone</p>
+        
+        <div id="qrcode-container"></div>
+        
+        <div style="margin-top: 1rem; font-size: 1.1rem; font-weight: 700; color: var(--accent-cyan);" id="projector-url-text">
+          http://localhost:3000
+        </div>
+        <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 6px;">
+          No app download required. Just enter your name to play!
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Supabase Database Configuration -->
+  <div class="modal-overlay hidden" id="supabase-modal">
+    <div class="modal-content" style="max-width: 500px;">
+      <button class="modal-close" id="supabase-modal-close">&times;</button>
+      <h3 style="margin-bottom: 0.5rem;">Supabase Connection Setup</h3>
+      <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1.25rem;">
+        Connect your Supabase project for real-time Postgres synchronization between organizer and players.
+      </p>
+
+      <div class="form-group">
+        <label for="sb-url-input">Project URL</label>
+        <input type="text" id="sb-url-input" class="input-field" placeholder="https://xyzcompany.supabase.co">
+      </div>
+
+      <div class="form-group">
+        <label for="sb-key-input">Anon / Public API Key</label>
+        <input type="password" id="sb-key-input" class="input-field" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...">
+      </div>
+
+      <div style="background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.2); padding: 10px; border-radius: 8px; margin-bottom: 1.25rem; font-size: 0.8rem; color: #bae6fd;">
+        💡 <strong>Tip:</strong> You can run the prepared <code>supabase_schema.sql</code> file in your Supabase SQL editor to auto-create the tables and seed tasks in seconds.
+      </div>
+
+      <div style="display: flex; gap: 8px;">
+        <button class="btn btn-primary" id="save-supabase-btn" style="flex: 2;">Save & Connect</button>
+        <button class="btn" id="disconnect-supabase-btn" style="flex: 1;">Use Local API</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Admin Scripts -->
+  <script src="js/config.js"></script>
+  <script src="js/db.js"></script>
+  <script src="js/admin.js"></script>
+</body>
+</html>
