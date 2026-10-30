@@ -3,11 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>VICE PROTOCOL • IEEE Human Bingo</title>
+  <title>IEEE Icebreaker Bingo</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Outfit:wght@700;800;900&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
+  <!-- Supabase JS Client & Confetti -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
   <script src="/socket.io/socket.io.js"></script>
@@ -17,35 +18,30 @@
   <div class="app-container">
     <!-- Header -->
     <header class="app-header">
-      <div class="brand-badge">
-        <span class="hud-dot"></span>
-        <span>IEEE STUDENT BRANCH // VICE PROTOCOL</span>
-      </div>
+      <div class="brand-badge">⚡ IEEE Student Branch • Icebreaker</div>
       <h1 class="app-title">HUMAN BINGO</h1>
-      <p class="app-subtitle">ACQUIRE TARGETS • EXTRACT SIGNATURES • EXECUTE BINGO</p>
+      <p class="app-subtitle">Meet someone new, get their name & achieve BINGO!</p>
     </header>
 
-    <!-- Operative Status Bar -->
+    <!-- Player Information Bar -->
     <div class="player-bar" id="player-bar" style="display: none;">
       <div class="player-info">
-        <div class="player-avatar" id="player-avatar">R</div>
+        <div class="player-avatar" id="player-avatar">?</div>
         <div>
           <div class="player-name">
-            <span id="player-display-name">OPERATIVE</span>
+            <span id="player-display-name">Guest</span>
             <span class="player-tag" id="player-display-branch"></span>
           </div>
-          <div style="font-size: 0.68rem; color: var(--rockstar-cyan); font-family: var(--font-mono); letter-spacing: 0.08em;" id="sync-status">
-            SYS.STATUS // SYNCED ONLINE
-          </div>
+          <div style="font-size: 0.72rem; color: var(--text-muted);" id="sync-status">🟢 Live synced</div>
         </div>
       </div>
       <div class="player-controls">
-        <button class="icon-btn" id="sound-toggle-btn" title="Toggle Sound">AUDIO ON</button>
-        <button class="icon-btn" id="change-name-btn" title="Edit Codename">CODENAME</button>
+        <button class="icon-btn" id="sound-toggle-btn" title="Toggle Sound">🔊 Sound</button>
+        <button class="icon-btn" id="change-name-btn" title="Change Profile">👤 Profile</button>
       </div>
     </div>
 
-    <!-- B-I-N-G-O Letters Combo -->
+    <!-- B-I-N-G-O Letters Progress Tracker -->
     <div class="bingo-header" id="bingo-header">
       <div class="bingo-letter" id="letter-0">B</div>
       <div class="bingo-letter" id="letter-1">I</div>
@@ -54,117 +50,107 @@
       <div class="bingo-letter" id="letter-4">O</div>
     </div>
 
-    <!-- 5x5 Grid -->
+    <!-- 5x5 Bingo Grid -->
     <main class="bingo-grid" id="bingo-grid">
-      <!-- Generated dynamically -->
+      <!-- Generated dynamically by app.js -->
     </main>
 
-    <!-- Syndicate Directives Banner -->
-    <div style="font-size: 0.72rem; color: var(--text-dim); text-align: center; background: rgba(0,0,0,0.6); border: 1px dashed var(--border-hud); padding: 8px 12px; font-family: var(--font-mono); letter-spacing: 0.05em;">
-      ⚠️ <strong>DIRECTIVE:</strong> Max <strong>2 signatures</strong> per operative on your card. Max <strong>8 signatures</strong> event-wide!
+    <!-- Rules Banner -->
+    <div style="font-size: 0.75rem; color: var(--text-muted); text-align: center; background: rgba(255,255,255,0.03); border: 1px dashed var(--border-color); border-radius: var(--radius-sm); padding: 8px 12px;">
+      ℹ️ <strong>Rules:</strong> Each person can sign at most <strong>2 tasks</strong> on your card, and max <strong>8 times</strong> across the entire event!
     </div>
 
-    <!-- HUD Stats Footer -->
+    <!-- Stats & Progress Footer -->
     <footer class="stats-footer">
       <div class="stat-pill">
-        <span>COMBOS:</span>
+        <span>Lines:</span>
         <span class="stat-val" id="lines-count">0 / 5</span>
       </div>
       <div class="stat-pill">
-        <span>TARGETS:</span>
+        <span>Tasks:</span>
         <span class="stat-val" id="tasks-checked-count">1 / 25</span>
       </div>
       <div class="stat-pill">
-        <span id="bingo-status-pill" style="color: var(--rockstar-gold); font-weight: 800; font-family: var(--font-mono);">
-          5 COMBOS NEEDED
-        </span>
+        <span id="bingo-status-pill" style="color: var(--accent-gold); font-weight: 700;">Aim for 5 Lines!</span>
       </div>
     </footer>
   </div>
 
-  <!-- Onboarding Modal: Operative Enlistment -->
+  <!-- Onboarding Modal: Just enter your name (Zero Friction Login) -->
   <div class="modal-overlay" id="join-modal">
     <div class="modal-card">
-      <div style="font-size: 2.5rem; margin-bottom: 0.25rem;">🕶️</div>
-      <h2>ENLIST OPERATIVE</h2>
-      <p>Enter your identity to deploy your unique randomized 5x5 syndicate board.</p>
+      <div style="font-size: 2.2rem; margin-bottom: 0.5rem;">🎉</div>
+      <h2>Join the Icebreaker!</h2>
+      <p>Enter your name to generate your unique, randomized 5x5 Bingo card.</p>
       
       <form id="join-form">
         <div class="form-group">
-          <label for="player-name-input">OPERATIVE CODENAME / FULL NAME *</label>
-          <input type="text" id="player-name-input" class="input-field" placeholder="e.g. Alex Vance" required autofocus>
+          <label for="player-name-input">Your Full Name *</label>
+          <input type="text" id="player-name-input" class="input-field" placeholder="e.g. Alex Rivera" required autofocus>
         </div>
 
         <div class="form-group">
-          <label for="player-branch-input">AFFILIATION / BRANCH (OPTIONAL)</label>
-          <input type="text" id="player-branch-input" class="input-field" placeholder="e.g. CSE / Robotics / 2nd Year">
+          <label for="player-branch-input">Branch / Major (Optional)</label>
+          <input type="text" id="player-branch-input" class="input-field" placeholder="e.g. ECE / CS / 2nd Year">
         </div>
 
-        <button type="submit" class="btn-primary" id="join-submit-btn">
-          DEPLOY BINGO BOARD ⚡
-        </button>
+        <button type="submit" class="btn-primary" id="join-submit-btn">Get My Bingo Card 🚀</button>
       </form>
     </div>
   </div>
 
-  <!-- Verification Modal: Target Signature -->
+  <!-- Verification Modal: Who did you meet? (Required to mark task) -->
   <div class="modal-overlay hidden" id="sign-task-modal">
     <div class="modal-card">
-      <span class="cell-category" id="modal-task-category" style="margin-bottom: 8px; display: inline-block;">INTEL TARGET</span>
-      <h3 id="modal-task-text" style="font-family: var(--font-heading); font-size: 1.25rem; font-weight: 800; color: #fff; line-height: 1.3; margin-bottom: 0.5rem;">
-        Target Briefing
-      </h3>
-      <p style="font-size: 0.8rem; color: var(--text-dim); margin-bottom: 1rem;">
-        Locate an operative meeting this intel and extract their signature:
+      <span class="badge" id="modal-task-category" style="margin-bottom: 8px; display: inline-block;">TASK</span>
+      <h3 id="modal-task-text" style="font-size: 1.15rem; margin-bottom: 0.5rem; line-height: 1.35;">Task Description</h3>
+      <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 1rem;">
+        Find someone who fits this task and enter their name to sign your square:
       </p>
       
-      <div id="modal-error-box" style="display: none; background: rgba(255, 0, 85, 0.15); border: 1px solid var(--rockstar-pink); color: #fff; padding: 10px; font-size: 0.82rem; margin-bottom: 1rem; text-align: left; font-family: var(--font-mono);">
+      <!-- Error Message Box -->
+      <div id="modal-error-box" style="display: none; background: rgba(244, 63, 94, 0.15); border: 1px solid rgba(244, 63, 94, 0.4); color: #fecdd3; padding: 10px; border-radius: 8px; font-size: 0.82rem; margin-bottom: 1rem; text-align: left;">
       </div>
 
       <form id="sign-task-form">
         <div class="form-group">
-          <label for="person-name-input">SIGNING OPERATIVE'S NAME *</label>
+          <label for="person-name-input">Person's Full Name *</label>
           <input type="text" id="person-name-input" class="input-field" placeholder="e.g. Rahul Sharma" required autocomplete="off">
-          <div style="font-size: 0.68rem; color: var(--text-dim); margin-top: 5px; font-family: var(--font-mono);">
-            [!] Restricted to 2 signatures per operative on this card.
+          <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 4px;">
+            ⚠️ Max 2 squares per person on your board.
           </div>
         </div>
 
         <div style="display: flex; gap: 8px; margin-top: 1.25rem;">
-          <button type="submit" class="btn-primary" id="confirm-sign-btn" style="flex: 2; font-size: 1.15rem; padding: 0.75rem;">
-            LOCK IN TARGET ✓
+          <button type="submit" class="btn-primary" id="confirm-sign-btn" style="flex: 2;">
+            Confirm & Mark Task ✓
           </button>
-          <button type="button" class="btn-danger" id="clear-task-btn" style="display: none;">
-            CLEAR
+          <button type="button" class="btn btn-danger" id="clear-task-btn" style="display: none; padding: 8px 12px; font-size: 0.85rem;">
+            Clear
           </button>
           <button type="button" class="icon-btn" id="cancel-sign-btn" style="flex: 1; justify-content: center;">
-            ABORT
+            Cancel
           </button>
         </div>
       </form>
     </div>
   </div>
 
-  <!-- GTA STYLE MISSION PASSED OVERLAY -->
-  <div class="modal-overlay gta-passed-overlay hidden" id="victory-modal">
-    <div class="gta-letterbox-top"></div>
-    <div class="gta-letterbox-bottom"></div>
-    
-    <div class="gta-passed-content">
-      <div class="gta-mission-title">MISSION PASSED!</div>
-      <div class="gta-respect-badge">RESPECT + 100</div>
-      
-      <p style="font-family: var(--font-mono); font-size: 0.95rem; color: #fff; letter-spacing: 0.08em; max-width: 480px; margin: 0 auto 1.75rem; line-height: 1.5;">
-        BINGO PROTOCOL SUCCESSFULLY EXECUTED. YOU CRACKED 5 LINES. PRESENT YOUR TERMINAL TO THE IEEE COMMAND TABLE TO CLAIM YOUR BOUNTY!
+  <!-- BINGO Celebration Modal -->
+  <div class="modal-overlay hidden" id="victory-modal">
+    <div class="modal-card victory-card">
+      <div class="victory-icon">🏆</div>
+      <h2 style="color: var(--accent-gold); font-size: 2rem;">BINGO!</h2>
+      <p style="color: #e2e8f0; font-size: 1rem; margin-bottom: 1.5rem;">
+        Incredible job! You've completed 5 full lines! Show your card to an IEEE organizer to claim your reward!
       </p>
-
-      <button class="btn-primary" id="continue-playing-btn" style="max-width: 280px; margin: 0 auto; background: #fbbf24; color: #000; font-weight: 900; box-shadow: var(--shadow-neon-gold);">
-        CONTINUE THE HEIST ⚡
+      <button class="btn-primary" id="continue-playing-btn" style="background: var(--accent-gold); color: #000; font-weight: 800;">
+        Keep Mingling & Playing 🎊
       </button>
     </div>
   </div>
 
-  <!-- Scripts -->
+  <!-- Core Scripts -->
   <script src="js/audio.js"></script>
   <script src="js/config.js"></script>
   <script src="js/db.js"></script>
