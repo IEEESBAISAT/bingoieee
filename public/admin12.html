@@ -19,13 +19,13 @@
   <!-- ADMIN AUTHENTICATION GATE (Only Admins Login) -->
   <div class="modal-overlay" id="admin-login-overlay" style="z-index: 9999;">
     <div class="modal-card" style="max-width: 420px; text-align: center;">
-      <div style="font-size: 2.8rem; margin-bottom: 0.5rem;">🔒</div>
-      <h2 style="font-size: 1.5rem; margin-bottom: 0.25rem;">Organizer Access Only</h2>
-      <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 1.25rem;">
+      <span class="login-emoji">🔒</span>
+      <h2 class="login-title">Organizer Access Only</h2>
+      <p class="login-desc">
         This console is restricted to IEEE event coordinators. Students must use the main game page.
       </p>
 
-      <div id="login-error-box" style="display: none; background: rgba(244, 63, 94, 0.15); border: 1px solid rgba(244, 63, 94, 0.4); color: #fecdd3; padding: 10px; border-radius: 8px; font-size: 0.82rem; margin-bottom: 1rem; text-align: left;">
+      <div id="login-error-box" class="error-box">
       </div>
 
       <form id="admin-login-form">
@@ -39,13 +39,13 @@
           <input type="password" id="admin-pass-input" class="input-field" placeholder="Password (default: ieee@2026)" required>
         </div>
 
-        <button type="submit" class="btn-primary" id="admin-login-submit-btn" style="margin-top: 0.5rem;">
+        <button type="submit" class="btn-primary" id="admin-login-submit-btn" style="margin-top: 0.35rem;">
           Unlock Organizer Console 🔑
         </button>
       </form>
 
-      <div style="margin-top: 1.25rem; font-size: 0.75rem; color: var(--text-muted);">
-        Are you a participant? <a href="/" style="color: var(--accent-cyan); text-decoration: none; font-weight: 600;">Go to Bingo Card &rarr;</a>
+      <div class="login-footer">
+        Are you a participant? <a href="/">Go to Bingo Card &rarr;</a>
       </div>
     </div>
   </div>
@@ -69,7 +69,7 @@
           <span id="db-status-text">Supabase Connected ⚡</span>
         </div>
 
-        <button class="btn" id="tutorial-guide-btn" style="background: rgba(99, 102, 241, 0.12); color: #c7d2fe; border-color: rgba(99, 102, 241, 0.3);">
+        <button class="btn btn-ghost" id="tutorial-guide-btn">
           <span>📘 Host Guide</span>
         </button>
 
@@ -85,7 +85,7 @@
           <span>🔄 Reset Round</span>
         </button>
 
-        <button class="btn" id="admin-logout-btn" title="Sign out" style="background: rgba(255,255,255,0.06);">
+        <button class="btn btn-muted" id="admin-logout-btn" title="Sign out">
           <span>🚪 Logout</span>
         </button>
       </div>
@@ -130,12 +130,12 @@
       </section>
 
       <!-- Rules Reminder Box -->
-      <div style="background: rgba(99, 102, 241, 0.08); border: 1px solid rgba(99, 102, 241, 0.2); padding: 12px 18px; border-radius: 12px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
-        <div style="font-size: 0.85rem; color: #c7d2fe; display: flex; align-items: center; gap: 8px;">
+      <div class="rules-reminder">
+        <div class="rules-reminder-text">
           <span>🔒</span>
           <span><strong>Enforced Anti-Cheat Game Rules:</strong> Squares require a participant name. Max <strong>2 signatures per person</strong> on an individual card, and max <strong>8 signatures</strong> across the whole event!</span>
         </div>
-        <button class="btn" id="quick-tutorial-trigger" style="padding: 4px 10px; font-size: 0.78rem; background: rgba(255,255,255,0.08);">
+        <button class="btn" id="quick-tutorial-trigger" style="padding: 3px 9px; font-size: 0.74rem;">
           View Host Tutorial &rarr;
         </button>
       </div>
@@ -153,10 +153,10 @@
           <div class="section-header">
             <div>
               <h2 class="section-title">Active Event Participants</h2>
-              <p style="font-size: 0.85rem; color: var(--text-muted);">Real-time monitoring of participants, checked tasks, and completed lines.</p>
+              <p class="section-desc">Real-time monitoring of participants, checked tasks, and completed lines.</p>
             </div>
-            <div style="display: flex; gap: 10px;">
-              <input type="text" id="participant-search" placeholder="Search by name or branch..." style="padding: 8px 12px; background: var(--bg-surface); border: 1px solid var(--border); border-radius: 8px; color: #fff; font-size: 0.85rem; width: 220px;">
+            <div class="section-actions">
+              <input type="text" id="participant-search" class="search-input" placeholder="Search by name or branch...">
               <button class="btn" id="refresh-participants-btn">↻ Refresh</button>
             </div>
           </div>
@@ -192,7 +192,7 @@
           <div class="section-header">
             <div>
               <h2 class="section-title">Add & Manage Icebreaker Tasks</h2>
-              <p style="font-size: 0.85rem; color: var(--text-muted);">
+              <p class="section-desc">
                 Tasks are automatically randomized and served to participants' 5x5 boards from this dynamic pool.
               </p>
             </div>
@@ -212,12 +212,12 @@
           </form>
 
           <!-- Category Filter Bar -->
-          <div style="display: flex; gap: 8px; margin-bottom: 1rem; flex-wrap: wrap;">
-            <button class="btn task-filter-btn active" data-category="ALL" style="font-size: 0.8rem; padding: 4px 10px;">All</button>
-            <button class="btn task-filter-btn" data-category="Tech" style="font-size: 0.8rem; padding: 4px 10px;">Tech</button>
-            <button class="btn task-filter-btn" data-category="College" style="font-size: 0.8rem; padding: 4px 10px;">College</button>
-            <button class="btn task-filter-btn" data-category="Social" style="font-size: 0.8rem; padding: 4px 10px;">Social</button>
-            <button class="btn task-filter-btn" data-category="Fun" style="font-size: 0.8rem; padding: 4px 10px;">Fun</button>
+          <div class="filter-bar">
+            <button class="btn task-filter-btn active" data-category="ALL">All</button>
+            <button class="btn task-filter-btn" data-category="Tech">Tech</button>
+            <button class="btn task-filter-btn" data-category="College">College</button>
+            <button class="btn task-filter-btn" data-category="Social">Social</button>
+            <button class="btn task-filter-btn" data-category="Fun">Fun</button>
           </div>
 
           <!-- Task Cards Grid -->
@@ -232,9 +232,9 @@
         <div class="section-card">
           <div class="section-header">
             <h2 class="section-title">Most Popular Completed Icebreakers</h2>
-            <p style="font-size: 0.85rem; color: var(--text-muted);">See which tasks have sparked the most conversations.</p>
+            <p class="section-desc">See which tasks have sparked the most conversations.</p>
           </div>
-          <div id="popular-tasks-list" style="display: flex; flex-direction: column; gap: 10px;">
+          <div id="popular-tasks-list" class="analytics-list">
             <!-- Populated dynamically -->
           </div>
         </div>
@@ -247,49 +247,49 @@
   <div class="modal-overlay hidden" id="tutorial-modal">
     <div class="modal-content" style="max-width: 620px;">
       <button class="modal-close" id="tutorial-modal-close">&times;</button>
-      <div style="margin-bottom: 1.25rem;">
+      <div class="tutorial-modal-header">
         <span class="badge tech" style="margin-bottom: 6px; display: inline-block;">ORGANIZER CHEATSHEET</span>
-        <h2 style="font-size: 1.5rem; font-weight: 800; color: #fff;">How to Run the Bingo Icebreaker</h2>
-        <p style="font-size: 0.85rem; color: var(--text-muted);">Quick 4-step walkthrough for hosting a smooth, fun session.</p>
+        <h2>How to Run the Bingo Icebreaker</h2>
+        <p>Quick 4-step walkthrough for hosting a smooth, fun session.</p>
       </div>
 
-      <div style="display: flex; flex-direction: column; gap: 1rem; margin-bottom: 1.5rem;">
+      <div class="host-steps">
         
-        <div style="display: flex; gap: 14px; background: var(--bg-surface); padding: 14px 16px; border-radius: var(--radius-md); border: 1px solid var(--border);">
-          <div style="font-size: 1.75rem; flex-shrink: 0;">📺</div>
+        <div class="host-step">
+          <div class="host-step-icon">📺</div>
           <div>
-            <h4 style="font-size: 0.95rem; font-weight: 700; color: #fff; margin-bottom: 3px;">1. Project the QR Code on Stage</h4>
-            <p style="font-size: 0.82rem; color: var(--text-muted); line-height: 1.4;">
+            <h4 class="host-step-title">1. Project the QR Code on Stage</h4>
+            <p class="host-step-desc">
               Click <strong>"📺 Projector Mode & QR"</strong> in the top navigation. Project the screen on the auditorium projector. Students point their camera to open the game—no app downloads required.
             </p>
           </div>
         </div>
 
-        <div style="display: flex; gap: 14px; background: var(--bg-surface); padding: 14px 16px; border-radius: var(--radius-md); border: 1px solid var(--border);">
-          <div style="font-size: 1.75rem; flex-shrink: 0;">🎲</div>
+        <div class="host-step">
+          <div class="host-step-icon">🎲</div>
           <div>
-            <h4 style="font-size: 0.95rem; font-weight: 700; color: #fff; margin-bottom: 3px;">2. Zero-Friction Enrollment & Random Cards</h4>
-            <p style="font-size: 0.82rem; color: var(--text-muted); line-height: 1.4;">
+            <h4 class="host-step-title">2. Zero-Friction Enrollment & Random Cards</h4>
+            <p class="host-step-desc">
               Students only enter their name (no passwords). Each player receives a genuinely unique, randomized 5x5 card drawn from your active task pool with a central Free Space.
             </p>
           </div>
         </div>
 
-        <div style="display: flex; gap: 14px; background: var(--bg-surface); padding: 14px 16px; border-radius: var(--radius-md); border: 1px solid var(--border);">
-          <div style="font-size: 1.75rem; flex-shrink: 0;">✍️</div>
+        <div class="host-step">
+          <div class="host-step-icon">✍️</div>
           <div>
-            <h4 style="font-size: 0.95rem; font-weight: 700; color: #fff; margin-bottom: 3px;">3. Mingling & Signature Rules</h4>
-            <p style="font-size: 0.82rem; color: var(--text-muted); line-height: 1.4;">
+            <h4 class="host-step-title">3. Mingling & Signature Rules</h4>
+            <p class="host-step-desc">
               To check a square, students must type the name of the person they met. <strong>Anti-Cheat:</strong> The same person can sign at most <strong>2 squares</strong> per card, and max <strong>8 times</strong> across the entire event.
             </p>
           </div>
         </div>
 
-        <div style="display: flex; gap: 14px; background: var(--bg-surface); padding: 14px 16px; border-radius: var(--radius-md); border: 1px solid var(--border);">
-          <div style="font-size: 1.75rem; flex-shrink: 0;">🏆</div>
+        <div class="host-step">
+          <div class="host-step-icon">🏆</div>
           <div>
-            <h4 style="font-size: 0.95rem; font-weight: 700; color: #fff; margin-bottom: 3px;">4. Live Inspection & Winner Verification</h4>
-            <p style="font-size: 0.82rem; color: var(--text-muted); line-height: 1.4;">
+            <h4 class="host-step-title">4. Live Inspection & Winner Verification</h4>
+            <p class="host-step-desc">
               When a student achieves BINGO (5 lines), a golden <strong>🏆 BINGO</strong> badge appears next to their name in your table. Click <strong>"🔍 Inspect"</strong> to view their exact board and verify who signed their squares before awarding prizes!
             </p>
           </div>
@@ -297,7 +297,7 @@
 
       </div>
 
-      <button class="btn-primary" id="tutorial-got-it-btn" style="width: 100%;">
+      <button class="btn-primary" id="tutorial-got-it-btn">
         Got It, Let's Host! 🚀
       </button>
     </div>
@@ -307,9 +307,9 @@
   <div class="modal-overlay hidden" id="inspect-modal">
     <div class="modal-content" style="max-width: 650px;">
       <button class="modal-close" id="inspect-modal-close">&times;</button>
-      <div style="margin-bottom: 1rem;">
-        <h3 id="inspect-name" style="font-size: 1.25rem;">Participant Card</h3>
-        <p id="inspect-details" style="font-size: 0.82rem; color: var(--text-muted);">Live 5x5 board state</p>
+      <div class="inspect-header">
+        <h3 id="inspect-name">Participant Card</h3>
+        <p id="inspect-details">Live 5x5 board state</p>
       </div>
 
       <div class="bingo-grid" id="inspect-grid" style="pointer-events: none; max-width: 580px; margin: 0 auto;">
@@ -324,14 +324,14 @@
       <button class="modal-close" id="projector-modal-close">&times;</button>
       <div class="projector-banner">
         <h2>SCAN & PLAY!</h2>
-        <p style="color: var(--text-muted); font-size: 1rem;">Join the IEEE Icebreaker Bingo on your phone</p>
+        <p class="projector-subtitle">Join the IEEE Icebreaker Bingo on your phone</p>
         
         <div id="qrcode-container"></div>
         
-        <div style="margin-top: 1rem; font-size: 1.1rem; font-weight: 700; color: var(--brand-cyan);" id="projector-url-text">
+        <div class="projector-url" id="projector-url-text">
           http://localhost:3000
         </div>
-        <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 6px;">
+        <p class="projector-note">
           No app download required. Just enter your name to play!
         </p>
       </div>
