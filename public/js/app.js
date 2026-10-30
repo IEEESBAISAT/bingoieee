@@ -1,4 +1,4 @@
-// IEEE Icebreaker Bingo Player Client
+// IEEE Human Bingo Player Client
 document.addEventListener('DOMContentLoaded', async () => {
   const LOCAL_STORAGE_KEY = 'ieee_bingo_participant_id';
 
@@ -110,7 +110,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       updateProgress();
       window.sfx.playPop();
     } catch (err) {
-      alert('Error joining icebreaker session. Please try again.');
+      alert('Error joining the game session. Please try again.');
       console.error(err);
     }
   });

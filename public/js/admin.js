@@ -297,7 +297,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 
   seedDefaultTasksBtn.addEventListener('click', async () => {
-    if (confirm('Add IEEE curated icebreaker presets to the task pool?')) {
+    if (confirm('Add IEEE curated challenge presets to the task pool?')) {
       const presets = [
         { text: 'Uses Dark Mode on every single app 🌙', category: 'Tech' },
         { text: 'Pulled an all-nighter for a hackathon or exam ☕', category: 'College' },
