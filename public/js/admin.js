@@ -12,6 +12,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Elements - Dashboard
   const dbStatusBtn = document.getElementById('db-status-btn');
   const dbStatusText = document.getElementById('db-status-text');
+  // Supabase modal elements (optional - may not be present in all layouts)
   const supabaseModal = document.getElementById('supabase-modal');
   const supabaseModalClose = document.getElementById('supabase-modal-close');
   const sbUrlInput = document.getElementById('sb-url-input');
@@ -123,65 +124,68 @@ document.addEventListener('DOMContentLoaded', async () => {
     dbStatusBtn.style.color = '#34d399';
   }
 
-  // Supabase Settings Modal
-  dbStatusBtn.addEventListener('click', async () => {
-    try {
-      const res = await fetch('/api/supabase/status');
-      const data = await res.json();
-      if (data.url) sbUrlInput.value = data.url;
-    } catch {}
-    if (!sbUrlInput.value) sbUrlInput.value = window.SUPABASE_CONFIG.url || '';
-    sbKeyInput.value = window.SUPABASE_CONFIG.anonKey || '';
-    supabaseModal.classList.remove('hidden');
-  });
+  // Supabase Settings Modal (only wire up if elements exist in the DOM)
+  if (dbStatusBtn) {
+    dbStatusBtn.addEventListener('click', async () => {
+      if (!supabaseModal) return;
+      try {
+        const res = await fetch('/api/supabase/status');
+        const data = await res.json();
+        if (data.url && sbUrlInput) sbUrlInput.value = data.url;
+      } catch {}
+      if (sbUrlInput && !sbUrlInput.value) sbUrlInput.value = (window.SUPABASE_CONFIG && window.SUPABASE_CONFIG.url) || '';
+      if (sbKeyInput) sbKeyInput.value = (window.SUPABASE_CONFIG && window.SUPABASE_CONFIG.anonKey) || '';
+      supabaseModal.classList.remove('hidden');
+    });
+  }
 
-  supabaseModalClose.addEventListener('click', () => supabaseModal.classList.add('hidden'));
+  if (supabaseModalClose) supabaseModalClose.addEventListener('click', () => supabaseModal.classList.add('hidden'));
 
-  saveSupabaseBtn.addEventListener('click', async () => {
-    const url = sbUrlInput.value.trim();
-    const key = sbKeyInput.value.trim();
-    if (!url || !key) {
-      alert('Please provide both Supabase URL and Anon Key');
-      return;
-    }
-    saveSupabaseBtn.textContent = 'Connecting & Syncing...';
-    saveSupabaseBtn.disabled = true;
+  if (saveSupabaseBtn) {
+    saveSupabaseBtn.addEventListener('click', async () => {
+      const url = sbUrlInput ? sbUrlInput.value.trim() : '';
+      const key = sbKeyInput ? sbKeyInput.value.trim() : '';
+      if (!url || !key) {
+        alert('Please provide both Supabase URL and Anon Key');
+        return;
+      }
+      saveSupabaseBtn.textContent = 'Connecting & Syncing...';
+      saveSupabaseBtn.disabled = true;
+      try {
+        await fetch('/api/supabase/config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url, anonKey: key })
+        });
+        if (window.SUPABASE_CONFIG) window.SUPABASE_CONFIG.save(url, key);
+        window.appDb.init();
+        await updateDbStatus();
+        if (supabaseModal) supabaseModal.classList.add('hidden');
+        await loadAllData();
+        alert('Supabase connected successfully!');
+      } catch (err) {
+        alert('Error connecting to Supabase: ' + err.message);
+      } finally {
+        saveSupabaseBtn.textContent = 'Save & Connect';
+        saveSupabaseBtn.disabled = false;
+      }
+    });
+  }
 
-    try {
-      // 1. Send keys to server so all players automatically sync to Supabase!
+  if (disconnectSupabaseBtn) {
+    disconnectSupabaseBtn.addEventListener('click', async () => {
       await fetch('/api/supabase/config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url, anonKey: key })
+        body: JSON.stringify({ url: '', anonKey: '' })
       });
-
-      // 2. Save in client adapter as well
-      window.SUPABASE_CONFIG.save(url, key);
+      if (window.SUPABASE_CONFIG) window.SUPABASE_CONFIG.save('', '');
       window.appDb.init();
       await updateDbStatus();
-      supabaseModal.classList.add('hidden');
-      await loadAllData();
-      alert('Supabase connected successfully! All tasks and participants are now synced to your Supabase tables.');
-    } catch (err) {
-      alert('Error connecting to Supabase: ' + err.message);
-    } finally {
-      saveSupabaseBtn.textContent = 'Save & Connect';
-      saveSupabaseBtn.disabled = false;
-    }
-  });
-
-  disconnectSupabaseBtn.addEventListener('click', async () => {
-    await fetch('/api/supabase/config', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url: '', anonKey: '' })
+      if (supabaseModal) supabaseModal.classList.add('hidden');
+      loadAllData();
     });
-    window.SUPABASE_CONFIG.save('', '');
-    window.appDb.init();
-    await updateDbStatus();
-    supabaseModal.classList.add('hidden');
-    loadAllData();
-  });
+  }
 
   // Tab switching
   document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -236,16 +240,23 @@ document.addEventListener('DOMContentLoaded', async () => {
             ${task.active !== false ? '● Active' : '○ Inactive'}
           </span>
         </div>
-        <div class="task-card-text">${escapeHtml(task.text)}</div>
+        <div class="task-card-text" data-task-text-id="${task.id}">${escapeHtml(task.text)}</div>
         <div class="task-card-actions">
+          <button class="btn" style="padding: 4px 8px; font-size: 0.75rem; color: var(--accent-cyan); border-color: var(--accent-cyan);" data-edit-id="${task.id}">
+            ✏️ Edit
+          </button>
           <button class="btn" style="padding: 4px 8px; font-size: 0.75rem;" data-toggle-id="${task.id}">
             ${task.active !== false ? 'Deactivate' : 'Activate'}
           </button>
           <button class="btn btn-danger" style="padding: 4px 8px; font-size: 0.75rem;" data-delete-id="${task.id}">
-            Delete
+            🗑️ Delete
           </button>
         </div>
       `;
+
+      card.querySelector(`[data-edit-id="${task.id}"]`).addEventListener('click', () => {
+        openEditTaskModal(task);
+      });
 
       card.querySelector(`[data-toggle-id="${task.id}"]`).addEventListener('click', async () => {
         const newActive = task.active === false;
@@ -256,18 +267,110 @@ document.addEventListener('DOMContentLoaded', async () => {
       });
 
       card.querySelector(`[data-delete-id="${task.id}"]`).addEventListener('click', async () => {
-        if (confirm(`Delete task: "${task.text}"?`)) {
-          await window.appDb.deleteTask(task.id);
-          allTasks = allTasks.filter(t => t.id !== task.id);
-          renderTasks();
-          kpiTasks.textContent = allTasks.filter(t => t.active !== false).length;
-          tabTasksCount.textContent = allTasks.length;
+        if (confirm(`Delete task: "${task.text}"?\n\nThis cannot be undone.`)) {
+          const btn = card.querySelector(`[data-delete-id="${task.id}"]`);
+          btn.textContent = 'Deleting...';
+          btn.disabled = true;
+          try {
+            await window.appDb.deleteTask(task.id);
+            allTasks = allTasks.filter(t => t.id !== task.id);
+            renderTasks();
+            kpiTasks.textContent = allTasks.filter(t => t.active !== false).length;
+            tabTasksCount.textContent = allTasks.length;
+          } catch (err) {
+            alert('Error deleting task: ' + err.message);
+            btn.textContent = '🗑️ Delete';
+            btn.disabled = false;
+          }
         }
       });
 
       tasksGrid.appendChild(card);
     });
   }
+
+  // ---- Edit Task Modal ----
+  // Create modal element dynamically
+  const editModal = document.createElement('div');
+  editModal.id = 'edit-task-modal';
+  editModal.className = 'modal-overlay hidden';
+  editModal.innerHTML = `
+    <div class="modal-content" style="max-width: 500px;">
+      <button class="modal-close" id="edit-task-modal-close">&times;</button>
+      <h3 style="font-size: 1.2rem; font-weight: 700; margin-bottom: 1.2rem; color: var(--accent-cyan);">✏️ Edit Task</h3>
+      <div class="form-group" style="margin-bottom: 1rem;">
+        <label style="font-size: 0.85rem; color: var(--text-muted); display: block; margin-bottom: 6px;">Task Text</label>
+        <textarea id="edit-task-text-input" rows="3" style="width: 100%; background: var(--bg-surface); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; color: #fff; font-size: 0.9rem; resize: vertical; font-family: inherit;"></textarea>
+      </div>
+      <div class="form-group" style="margin-bottom: 1.4rem;">
+        <label style="font-size: 0.85rem; color: var(--text-muted); display: block; margin-bottom: 6px;">Category</label>
+        <select id="edit-task-category-input" style="width: 100%; background: var(--bg-surface); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; color: #fff; font-size: 0.9rem;">
+          <option value="Tech">💻 Tech</option>
+          <option value="College">🎓 College Life</option>
+          <option value="Social">🤝 Social</option>
+          <option value="Fun">🎉 Fun &amp; Quirky</option>
+        </select>
+      </div>
+      <div style="display: flex; gap: 10px; justify-content: flex-end;">
+        <button class="btn" id="edit-task-cancel-btn" style="padding: 8px 18px;">Cancel</button>
+        <button class="btn btn-primary" id="edit-task-save-btn" style="padding: 8px 18px;">💾 Save Changes</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(editModal);
+
+  const editTaskTextInput = document.getElementById('edit-task-text-input');
+  const editTaskCategoryInput = document.getElementById('edit-task-category-input');
+  const editTaskSaveBtn = document.getElementById('edit-task-save-btn');
+  const editTaskCancelBtn = document.getElementById('edit-task-cancel-btn');
+  const editTaskModalClose = document.getElementById('edit-task-modal-close');
+  let currentEditingTask = null;
+
+  function openEditTaskModal(task) {
+    currentEditingTask = task;
+    editTaskTextInput.value = task.text;
+    editTaskCategoryInput.value = task.category || 'Fun';
+    editModal.classList.remove('hidden');
+    editTaskTextInput.focus();
+  }
+
+  function closeEditModal() {
+    editModal.classList.add('hidden');
+    currentEditingTask = null;
+  }
+
+  editTaskModalClose.addEventListener('click', closeEditModal);
+  editTaskCancelBtn.addEventListener('click', closeEditModal);
+  editModal.addEventListener('click', (e) => { if (e.target === editModal) closeEditModal(); });
+
+  editTaskSaveBtn.addEventListener('click', async () => {
+    if (!currentEditingTask) return;
+    const newText = editTaskTextInput.value.trim();
+    const newCat = editTaskCategoryInput.value;
+    if (!newText) {
+      alert('Task text cannot be empty.');
+      return;
+    }
+    editTaskSaveBtn.textContent = 'Saving...';
+    editTaskSaveBtn.disabled = true;
+    try {
+      await window.appDb.updateTask(currentEditingTask.id, { text: newText, category: newCat });
+      // Update local cache
+      const idx = allTasks.findIndex(t => t.id === currentEditingTask.id);
+      if (idx !== -1) {
+        allTasks[idx].text = newText;
+        allTasks[idx].category = newCat;
+      }
+      closeEditModal();
+      renderTasks();
+    } catch (err) {
+      alert('Error saving task: ' + err.message);
+    } finally {
+      editTaskSaveBtn.textContent = '💾 Save Changes';
+      editTaskSaveBtn.disabled = false;
+    }
+  });
+
 
   addTaskForm.addEventListener('submit', async (e) => {
     e.preventDefault();

@@ -87,10 +87,19 @@ async function initialSupabaseSync() {
   if (!supabase) return;
   try {
     // 1. Sync tasks
-    const { data: remoteTasks, error: taskErr } = await supabase.from('tasks').select('id, text');
+    const { data: remoteTasks, error: taskErr } = await supabase.from('tasks').select('id, text, category, is_active');
     if (!taskErr) {
       if (remoteTasks && remoteTasks.length > 0) {
         console.log(`📦 Loaded ${remoteTasks.length} tasks from Supabase.`);
+        // Sync Supabase UUIDs back into local tasks so update/delete work reliably
+        tasks = remoteTasks.map(t => ({
+          id: t.id,          // Use Supabase UUID as primary id
+          supabaseId: t.id,  // Also store explicitly
+          text: t.text,
+          category: t.category || 'General',
+          active: t.is_active !== false
+        }));
+        writeJSON(TASKS_FILE, tasks);
       } else if (tasks.length > 0) {
         console.log(`📤 Seeding ${tasks.length} local tasks to Supabase...`);
         const rows = tasks.map(t => ({
@@ -305,11 +314,16 @@ app.post('/api/tasks', requireAdmin, async (req, res) => {
   // Sync to Supabase
   if (supabase) {
     try {
-      await supabase.from('tasks').insert([{
+      const { data: sbData, error: sbErr } = await supabase.from('tasks').insert([{
         text: newTask.text,
         category: newTask.category,
         is_active: true
-      }]);
+      }]).select('id').single();
+      if (!sbErr && sbData && sbData.id) {
+        // Store the Supabase UUID so update/delete can reference it
+        newTask.supabaseId = sbData.id;
+        writeJSON(TASKS_FILE, tasks);
+      }
     } catch (e) {
       console.error('Supabase task insert err:', e);
     }
@@ -335,11 +349,21 @@ app.put('/api/tasks/:id', requireAdmin, async (req, res) => {
 
   if (supabase) {
     try {
-      await supabase.from('tasks').update({
-        text: tasks[idx].text,
-        category: tasks[idx].category,
-        is_active: tasks[idx].active
-      }).eq('text', tasks[idx].text);
+      if (tasks[idx].supabaseId) {
+        // Use stored Supabase UUID for reliable updates
+        await supabase.from('tasks').update({
+          text: tasks[idx].text,
+          category: tasks[idx].category,
+          is_active: tasks[idx].active
+        }).eq('id', tasks[idx].supabaseId);
+      } else {
+        // Fallback: match by text for tasks without supabaseId
+        await supabase.from('tasks').update({
+          text: tasks[idx].text,
+          category: tasks[idx].category,
+          is_active: tasks[idx].active
+        }).eq('text', tasks[idx].text);
+      }
     } catch (e) {
       console.error('Supabase task update err:', e);
     }
@@ -361,7 +385,13 @@ app.delete('/api/tasks/:id', requireAdmin, async (req, res) => {
 
   if (supabase && taskToDelete) {
     try {
-      await supabase.from('tasks').delete().eq('text', taskToDelete.text);
+      if (taskToDelete.supabaseId) {
+        // Use stored Supabase UUID for reliable deletes
+        await supabase.from('tasks').delete().eq('id', taskToDelete.supabaseId);
+      } else {
+        // Fallback: match by text
+        await supabase.from('tasks').delete().eq('text', taskToDelete.text);
+      }
     } catch (e) {
       console.error('Supabase task delete err:', e);
     }

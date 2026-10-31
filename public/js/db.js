@@ -73,18 +73,11 @@ class DatabaseAdapter {
 
   // --- Task Operations ---
   async getTasks() {
-    if (this.mode === 'supabase') {
-      const { data, error } = await this.client
-        .from('tasks')
-        .select('*')
-        .order('created_at', { ascending: true });
-      if (error) throw error;
-      return data.map(t => ({ id: t.id, text: t.text, category: t.category, active: t.is_active }));
-    } else {
-      const res = await fetch('/api/tasks');
-      const data = await res.json();
-      return data.tasks || [];
-    }
+    // Always use server API for tasks - server handles Supabase sync internally
+    // This ensures task IDs are always consistent for edit/delete operations
+    const res = await fetch('/api/tasks');
+    const data = await res.json();
+    return data.tasks || [];
   }
 
   async addTask(text, category = 'General') {
